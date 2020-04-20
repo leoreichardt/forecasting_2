@@ -1,0 +1,51 @@
+---
+title: "Exploratory analysis"
+date: "4/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(tidyverse)
+library(ggseas)
+```
+
+
+```{r data}
+calendar <- read_csv("Data/calendar.csv")
+sales_train_validation <- read_csv("Data/sales_train_validation.csv")
+sell_prices <- read_csv("Data/sell_prices.csv")
+```
+
+
+## Plan
+We are interested in predicting the sales of TX_1. Therefore we will mainly focus on this store.
+
+calendar:
+- List of event_type_1 and event_type_2
+- Barplot. X axis = weekdays, Y axis = count(event)
+- Barplot. X axis = event_type, Y axis = count(event)
+- What are the events for which snap_TX = 1?
+- Time series. Y axis = count(event). Daily? Weekly? Monthly? Yearly? (will be usefull to compute correlation with time series about sales)
+- Same as precedent but only when snap_TX = 1
+- Résumer dans une table le nombre d'events par semaine, mois, année pour chaque année
+
+sell_prices:
+- Min, Max, Mean price for TX_1
+- Compared to the ohter stores?
+
+sales_train_validation:
+- First we need to join the sell prices
+- Sales per product (#, $ or %) for TX_1
+- Sales per category (#, $ or %) for TX_1
+- Total sales (# and $) for TX_1
+- Barplot. X axis = c(all, TX, TX_1), Y axis = % of sales
+- Time series of sales for TX_1
+* autoplot()
+* ggseasonplot()
+* ggsubseriesplot()
+* gglagplot()
+* ggacf()
+* checkresiduals()
+- qplot using ts of sales and ts of events? (any correlation?)
