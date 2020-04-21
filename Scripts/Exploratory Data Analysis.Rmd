@@ -9,26 +9,24 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readr)
 library(tidyverse)
 library(ggseas)
+library(kableExtra)
 ```
 
 
 ```{r data}
-calendar <- read_csv("Data/calendar.csv")
-sales_train_validation <- read_csv("Data/sales_train_validation.csv")
-sell_prices <- read_csv("Data/sell_prices.csv")
+calendar <- read_csv("~/Documents/GitHub/forecasting_2/Data/calendar.csv")
+sales_train_validation <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
+sell_prices <- read_csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
 ```
-
 
 ## Plan
 We are interested in predicting the sales of TX_1. Therefore we will mainly focus on this store.
 
 calendar:
-- List of event_type_1 and event_type_2
+- List of event types
 - Barplot. X axis = weekdays, Y axis = count(event)
 - Barplot. X axis = event_type, Y axis = count(event)
-- What are the events for which snap_TX = 1?
 - Time series. Y axis = count(event). Daily? Weekly? Monthly? Yearly? (will be usefull to compute correlation with time series about sales)
-- Same as precedent but only when snap_TX = 1
 - Résumer dans une table le nombre d'events par semaine, mois, année pour chaque année
 
 sell_prices:
@@ -49,3 +47,85 @@ sales_train_validation:
 * ggacf()
 * checkresiduals()
 - qplot using ts of sales and ts of events? (any correlation?)
+
+#-----------------------------------------------------------------------------------------------
+
+## Calendar
+
+List of event types
+```{r}
+calendar %>% select(event_type_1) %>% unique() %>% drop_na() %>%
+kable(caption ="List of event types") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  scroll_box(width = "100%") 
+```
+
+Barplot. X axis = weekdays, Y axis = count(event)
+```{r}
+x <- calendar %>% filter(!is.na(event_name_1) | !is.na(event_name_2)) %>% group_by(weekday) %>% count()
+  
+x$weekday <- ordered(x$weekday, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
+"Friday", "Saturday", "Sunday"))
+  
+x %>%  
+    ggplot(aes(x = weekday, y = n)) +
+    geom_col(fill = "#fb1c4c") +
+    geom_text(aes(label = n)) +
+    theme_bw() +
+  labs(title = "Number of events per weekday") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+          axis.title = element_blank())
+```
+
+## sell_prices
+
+
+
+
+
+## sales_train_validation
+
+Time series of sales for TX_1 (#)
+```{r}
+## Sales for TX_1
+sales_TX1 <- sales_train_validation %>% filter(store_id == "TX_1")
+
+## Total sales per day for TX_1
+Sales_per_day_TX1 <- sales_TX1 %>% select(7:1919) %>% colSums()
+
+## add column with total sales per product (TX_1)
+sales_TX1 <- sales_TX1 %>% mutate(tot_sales = rowSums(.[7:1919])) 
+
+## total sales for TX_1
+sum3 <- sales_TX1$tot_sales %>% sum()
+
+sell_prices_TX1 <- sell_prices %>% filter(store_id == "TX_1")
+
+calendar2 <- calendar[1:1913, 1:7] %>% mutate(Sales_per_day_TX1)
+
+calendar2 %>% 
+  ggplot(aes(x = date, y=Sales_per_day_TX1)) +
+  geom_line() +
+  theme_light() +
+  labs(title = "Sales per day (#)",
+      x = "Time",
+      y = "Number of sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+Time series decomposition
+```{r}
+ggsdc(calendar2, aes(x = date, y=Sales_per_day_TX1),
+         method = "stl", s.window = 13, frequency = 365,
+         facet.titles = c("The original series", "The underlying trend", 
+                          "Regular seasonal patterns", "All the randomness left")) +
+      geom_line() +
+  theme_light() +
+  labs(title = "Sales per day",
+      x = "Time",
+      y = "Number of sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+# What is a good value for s.window?
+```

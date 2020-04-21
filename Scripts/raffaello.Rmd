@@ -1,0 +1,137 @@
+---
+title: "Raffaello"
+author: "Raffaello Raffin"
+date: "4/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r data}
+calendar <- read_csv("~/Desktop/MASTER/2ème Semestre/Forecasting 2/m5-forecasting-accuracy 2/calendar.csv")
+sales_train_validation <- read_csv("~/Desktop/MASTER/2ème Semestre/Forecasting 2/m5-forecasting-accuracy 2/sales_train_validation.csv")
+sell_prices <- read_csv("~/Desktop/MASTER/2ème Semestre/Forecasting 2/m5-forecasting-accuracy 2/sell_prices.csv")
+```
+
+
+```{r libraries}
+library(readr)
+library(tidyverse)
+library(ggseas)
+```
+
+
+### all data
+```{r}
+## add column with total sales per product
+sales_train_validation <- sales_train_validation %>% mutate(tot_sales = rowSums(.[7:1919])) 
+
+## total sales
+sum1 <- sales_train_validation$tot_sales %>% sum()
+```
+
+
+### state TX
+```{r}
+## Sales for State TX
+sales_StateTX <- sales_train_validation %>% filter(state_id == "TX")
+
+## add column with total sales per product
+sales_StateTX <- sales_StateTX %>% mutate(tot_sales = rowSums(.[7:1919])) 
+
+## total sales for State TX
+sum2 <- sales_StateTX$tot_sales %>% sum()
+```
+
+
+
+### TX_1
+```{r}
+## Sales for TX_1
+sales_TX1 <- sales_train_validation %>% filter(store_id == "TX_1")
+
+## Total sales per day for TX_1
+Sales_per_day_TX1 <- sales_TX1 %>% select(7:1919) %>% colSums()
+
+## add column with total sales per product
+sales_TX1 <- sales_TX1 %>% mutate(tot_sales = rowSums(.[7:1919])) 
+
+## total sales for TX_1
+sum3 <- sales_TX1$tot_sales %>% sum()
+
+sell_prices_TX1 <- sell_prices %>% filter(store_id == "TX_1")
+```
+
+
+### Plot to represent the sales in term of proportions
+```{r}
+sums <- rbind(sum1, sum2, sum3)
+
+barplot(sums, 
+        main = "Sales in term of proportion of the total",
+        legend = rownames(sums))
+```
+
+
+
+```{r}
+## Sales for TX_1
+sales_TX1 <- sales_train_validation %>% filter(store_id == "TX_1")
+
+## Total sales per day for TX_1
+Sales_per_day_TX1 <- sales_TX1 %>% select(7:1919) %>% colSums()
+
+## add column with total sales per product
+sales_TX1 <- sales_TX1 %>% mutate(tot_sales = rowSums(.[7:1919])) 
+
+## total sales for TX_1
+sum3 <- sales_TX1$tot_sales %>% sum()
+
+sell_prices_TX1 <- sell_prices %>% filter(store_id == "TX_1")
+
+calendar2 <- calendar[1:1913, 1:7] %>% mutate(Sales_per_day_TX1)
+
+
+calendar2 %>% 
+  ggplot(aes(x = date, y=Sales_per_day_TX1)) +
+  geom_line() +
+  theme_light() +
+  labs(title = "Sales per day (#)",
+      x = "Time",
+      y = "Number of sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### Time series decomposition
+```{r}
+ggsdc(calendar2, aes(x = date, y=Sales_per_day_TX1),
+         method = "stl", s.window = 13, frequency = 365,
+         facet.titles = c("The original series", "The underlying trend", 
+                          "Regular seasonal patterns", "All the randomness left")) +
+      geom_line() +
+  theme_light() +
+  labs(title = "Sales per day",
+      x = "Time",
+      y = "Number of sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+# What is a good value for s.window?
+```
+
+
+
+```{r}
+sales_TX1 %>%
+  inner_join(sell_prices, by = "item_id")
+
+
+```
+
+
+
+
+
+
+
