@@ -2,7 +2,6 @@
 title: "forecast2"
 output: html_document
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(include = FALSE)
 library(dplyr)
@@ -24,9 +23,8 @@ sales_train_validation <- sales_train_validation %>% filter(store_id == "TX_1")
 sell_prices <- sell_prices  %>% filter(store_id == "TX_1")
 ```
 
-
 creating a new data frame with sales per day
-```{r include=FALSE}
+```{r echo=FALSE}
 
 ventes <- as.numeric()
 for (i in 7:ncol(sales_train_validation)) {
@@ -34,9 +32,8 @@ for (i in 7:ncol(sales_train_validation)) {
 }
 ventes <- ventes[-c(1:6)]
 
-
 ## créer un vecteur correspondant à d_1 à d_1913
-dates <- seq(as.Date("2011-01-29"), as.Date("2016-04-25"), by="days")
+dates <- seq(as.Date("2011-01-29"), as.Date("2016-04-24"), by="days")
 
 ventes_et_dates <- data.frame(ventes, dates)
 
@@ -44,15 +41,13 @@ ventes_et_dates$weekday = weekdays(ventes_et_dates$dates)
 ventes_et_dates$month = month(ventes_et_dates$dates)
 ```
 
-
 number of product per departement
 ```{r echo=FALSE}
 sales_train_validation%>%group_by(dept_id)%>%count()
 ```
 
-
 sales per day for one departement (FOODS_1 in this case)
-```{r eval=FALSE, include=FALSE}
+```{r echo=FALSE}
 dept_group_food<-sales_train_validation%>%group_by(dept_id)%>%filter(dept_id=="FOODS_1")
 
 ventes_per_dept <- as.numeric()
@@ -63,7 +58,6 @@ ventes <- ventes[-c(1:6)]
 
 
 ```
-
 
 average sales per weekday
 ```{r echo=FALSE}
@@ -105,7 +99,7 @@ sales_train_validation%>%
 ```
 
 ##joining `sell_prices`and `sales_train_validation` table
-```{r}
+```{r include=FALSE}
 #transpose the matrix
 sales_calendar <- data.frame(t(sales_train_validation))
 
@@ -132,5 +126,26 @@ price_TX1 %>%
   group_by(item_id) %>%
   summarise(max = max(sell_price), min = min(sell_price), avg = round(mean(sell_price), digits = 2)) %>%
   kable()
+```
+
+Evolution of prices over time
+```{r}
+#price avolution for one product in particular
+price_TX1 %>%
+  filter(item_id == "FOODS_3_794") %>% 
+  ggplot(x, mapping = aes(wm_yr_wk, sell_price)) +
+  geom_line() +
+  labs(x = "weeks", y = "price", size = 10) +
+  labs(title = "Evolution of prices through time")
+
+#price evolution by departement
+price_TX1 %>%
+  mutate(category = substr(item_id, 1, 5)) %>%
+  group_by(category, wm_yr_wk) %>%
+  mutate(avg_price = mean(sell_price)) %>%
+  ggplot() +
+  geom_line(aes(wm_yr_wk, avg_price, color = category)) +
+  labs(x = "weeks", y = "average prices", size = 10)+labs(title = "Evolution of prices through time by category")
+
 ```
 
