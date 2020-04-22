@@ -5,7 +5,6 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library(readr)
 library(tidyverse)
 library(ggseas)
@@ -13,55 +12,55 @@ library(kableExtra)
 ```
 
 
-```{r data}
+```{r data, include=FALSE}
 calendar <- read_csv("~/Documents/GitHub/forecasting_2/Data/calendar.csv")
 sales_train_validation <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
 sell_prices <- read_csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
 ```
 
 ## Plan
-We are interested in predicting the sales of TX_1. Therefore we will mainly focus on this store.
+We are interested in predicting the sales of TX_1. Therefore we will mainly focus on this store.   
 
-calendar:
-- List of event types
-- Barplot. X axis = weekdays, Y axis = count(event)
-- Barplot. X axis = event_type, Y axis = count(event)
-- Time series. Y axis = count(event). Daily? Weekly? Monthly? Yearly? (will be usefull to compute correlation with time series about sales)
-- Résumer dans une table le nombre d'events par semaine, mois, année pour chaque année
+calendar:   
+- List of event types   
+- Barplot. X axis = weekdays, Y axis = count(event)   
+- Barplot. X axis = event_type, Y axis = count(event)   
+- Time series. Y axis = count(event). Daily? Weekly? Monthly? Yearly? (will be usefull to compute correlation with time series about sales)    
+- Résumer dans une table le nombre d'events par semaine, mois, année pour chaque année   
 
-sell_prices:
-- Min, Max, Mean price for TX_1
-- Compared to the ohter stores?
+sell_prices:   
+- Min, Max, Mean price for TX_1   
+- Compared to the ohter stores?   
 
-sales_train_validation:
-- First we need to join the sell prices
-- Sales per product (#, $ or %) for TX_1
-- Sales per category (#, $ or %) for TX_1
-- Total sales (# and $) for TX_1
-- Barplot. X axis = c(all, TX, TX_1), Y axis = % of sales
-- Time series of sales for TX_1
-* autoplot()
-* ggseasonplot()
-* ggsubseriesplot()
-* gglagplot()
-* ggacf()
-* checkresiduals()
-- qplot using ts of sales and ts of events? (any correlation?)
+sales_train_validation:   
+- First we need to join the sell prices   
+- Sales per product (#, $ or %) for TX_1   
+- Sales per category (#, $ or %) for TX_1   
+- Total sales (# and $) for TX_1   
+- Barplot. X axis = c(all, TX, TX_1), Y axis = % of sales   
+- Time series of sales for TX_1   
+* autoplot()   
+* ggseasonplot()   
+* ggsubseriesplot()   
+* gglagplot()   
+* ggacf()   
+* checkresiduals()   
+- qplot using ts of sales and ts of events? (any correlation?)   
 
 #-----------------------------------------------------------------------------------------------
 
 ## Calendar
 
 List of event types
-```{r}
+```{r echo=FALSE}
 calendar %>% select(event_type_1) %>% unique() %>% drop_na() %>%
 kable(caption ="List of event types") %>% 
   kable_styling(bootstrap_options = c("striped", "hover")) %>%
   scroll_box(width = "100%") 
 ```
 
-Barplot. X axis = weekdays, Y axis = count(event)
-```{r}
+Barplot. X axis = weekdays, Y axis = count(event)   
+```{r echo=FALSE}
 x <- calendar %>% filter(!is.na(event_name_1) | !is.na(event_name_2)) %>% group_by(weekday) %>% count()
   
 x$weekday <- ordered(x$weekday, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
@@ -86,8 +85,8 @@ x %>%
 
 ## sales_train_validation
 
-Time series of sales for TX_1 (#)
-```{r}
+Time series of sales for TX_1 (#)   
+```{r echo=FALSE}
 ## Sales for TX_1
 sales_TX1 <- sales_train_validation %>% filter(store_id == "TX_1")
 
@@ -115,8 +114,8 @@ calendar2 %>%
 ```
 
 
-Time series decomposition
-```{r}
+Time series decomposition   
+```{r echo=FALSE}
 ggsdc(calendar2, aes(x = date, y=Sales_per_day_TX1),
          method = "stl", s.window = 13, frequency = 365,
          facet.titles = c("The original series", "The underlying trend", 
@@ -127,5 +126,6 @@ ggsdc(calendar2, aes(x = date, y=Sales_per_day_TX1),
       x = "Time",
       y = "Number of sales") +
   theme(plot.title = element_text(hjust = 0.5))
+
 # What is a good value for s.window?
 ```
