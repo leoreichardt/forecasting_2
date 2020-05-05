@@ -3,32 +3,79 @@ title: "forecast2"
 output: html_document
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(include = FALSE)
+rm(list=ls())
+library(hts)
+library(stringi)
 library(dplyr)
-library(ggplot2)
-library(tidyverse)
-library(here)
+library(stringr)
+library(purrr)
+library(tidyr)
 library(lubridate)
 library(knitr)
-library(kableExtra)
-library(readr)
-library(magrittr)
-library(forecast)
+library(ggplot2)
 
-calendar <- read_csv("~/Desktop/4.2/forecasting/m5-forecasting-accuracy/calendar.csv")
-sales_train_validation <- read_csv("~/Desktop/4.2/forecasting/m5-forecasting-accuracy/sales_train_validation.csv")
-sell_prices <- read_csv("~/Desktop/4.2/forecasting/m5-forecasting-accuracy/sell_prices.csv")
+# Load data
+df <- read.csv('~/Desktop/4.2/forecasting/m5-forecasting-accuracy/sales_train_validation.csv', stringsAsFactors = FALSE)
+df <- within(df, 
+             item_id <- as.factor(item_id),
+             dept_id <- as.factor(dept_id),
+             cat_id <- as.factor(cat_id))
+cal <- read.csv('~/Desktop/4.2/forecasting/m5-forecasting-accuracy/calendar.csv', na.strings = "")
+prices <- read.csv('~/Desktop/4.2/forecasting/m5-forecasting-accuracy/sell_prices.csv', stringsAsFactors = FALSE)
 
-sales_train_validation <- sales_train_validation %>% filter(store_id == "TX_1")
-sell_prices <- sell_prices  %>% filter(store_id == "TX_1")
+# Subset to a specific store
+df <- subset(df, store_id == "TX_1")
+
+# Take only the sales columns and transpose them
+tdf <- t(df[,7:ncol(df)])
+
+# Add "NA" values for the validation days;
+# Could also drop the extra columns from from `cal`
+tdf2 <- rbind(tdf, 
+              matrix(NA, nrow = nrow(cal) - nrow(tdf),
+                     ncol = ncol(tdf)))
+tdf3 <- data.frame(cbind(cal, tdf2))
+
+# Add in the unique names for each column
+colnames(tdf3) <- c(colnames(tdf3)[1:14], df$id)
+
+# Add price information: 
+# 1) Reshape the price data to have time series in rows, not columns
+# 2) Since the prices are given per week, repeat them accordingly to 
+#    get a full time series
+# 3) For those prices which are absent at the beginning of the data,
+#    we fill the missing values with the first observed price.
+
+# 1)
+prices <- subset(prices, store_id == "TX_1") %>% select(-store_id,) %>%
+  spread(item_id, sell_price)
+colnames(prices) <- c("wm_yr_wk", paste0("PRICE_", colnames(prices)[-1]))
+
+# 2)
+repetitions <- table(tdf3$wm_yr_wk)
+prices_full <- data.frame(wm_yr_wk = rep(prices$wm_yr_wk, times = repetitions))
+for (j in 2:ncol(prices))
+  prices_full <- cbind(prices_full, rep(prices[,j], times = repetitions))
+colnames(prices_full) <- colnames(prices)
+
+# 3)
+are_na_at_beginning <- is.na(prices_full[1,])
+for (j in which(are_na_at_beginning)) {
+  first_non_na <- which(!is.na(prices_full[,j]))[1]
+  prices_full[1:first_non_na,j] <- prices_full[first_non_na, j]
+}
+
+# Finally, combine all the data (volume + calendar + prices)
+tdf4 <- merge(tdf3, prices_full, by = "wm_yr_wk")
+
 ```
 
 creating a new data frame with sales per day
 ```{r echo=FALSE}
 
 ventes <- as.numeric()
-for (i in 7:ncol(sales_train_validation)) {
-  ventes[i] <- sum(sales_train_validation[ ,i])
+for (i in 7:ncol(df)) {
+  ventes[i] <- sum(df[ ,i])
 }
 ventes <- ventes[-c(1:6)]
 
@@ -43,12 +90,17 @@ ventes_et_dates$month = month(ventes_et_dates$dates)
 
 number of product per departement
 ```{r echo=FALSE}
-sales_train_validation%>%group_by(dept_id)%>%count()
+df %>%
+  group_by(dept_id) %>%
+  count() %>%
+  kable()
 ```
 
 sales per day for one departement (FOODS_1 in this case)
 ```{r echo=FALSE}
-dept_group_food<-sales_train_validation%>%group_by(dept_id)%>%filter(dept_id=="FOODS_1")
+dept_group_food <- df %>%
+  group_by(dept_id) %>%
+  filter(dept_id=="FOODS_1")
 
 ventes_per_dept <- as.numeric()
 for (i in 7:ncol(dept_group_food)) {
@@ -61,13 +113,17 @@ ventes <- ventes[-c(1:6)]
 
 average sales per weekday
 ```{r echo=FALSE}
-ventes_et_dates%>%
-  group_by(weekday)%>%
+
+ventes_et_dates$weekday <- ordered(ventes_et_dates$weekday, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", 
+"Friday", "Saturday", "Sunday"))
+
+ventes_et_dates %>%
+  group_by(weekday) %>%
   mutate(avg_sale = mean(ventes)) %>%
-  ggplot()+
-  geom_col(aes(x = weekday, y = avg_sale, color = weekday))+
+  ggplot() +
+  geom_col(aes(x = weekday, y = avg_sale, color = weekday)) +
   labs(x = "Weekday", y = "Average sales", size = 10)+labs(title = "Average sales per weekday") +
-  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10))+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10)) +
   theme(legend.position = "None")
 ```
 
@@ -86,9 +142,9 @@ ventes_et_dates%>%
 
 Sales per departement
 ```{r echo=FALSE}
-sales_train_validation$Sales_per_product <- sales_train_validation %>% select(7:1919) %>% mutate() %>% rowSums()
+df$Sales_per_product <- df %>% select(7:1919) %>% mutate() %>% rowSums()
 
-sales_train_validation%>%
+df%>%
   group_by(dept_id)%>%
   mutate(sum_sales = sum(Sales_per_product))  %>%
   ggplot()+
@@ -98,10 +154,11 @@ sales_train_validation%>%
   theme(legend.position = "None")
 ```
 
-##joining `sell_prices`and `sales_train_validation` table
 ```{r include=FALSE}
+##joining `sell_prices`and `sales_train_validation` table
+
 #transpose the matrix
-sales_calendar <- data.frame(t(sales_train_validation))
+sales_calendar <- data.frame(t(df))
 
 #create vector of date
 y <- seq(as.Date("2011-01-23"), as.Date("2016-04-25"), by = "day")
@@ -112,31 +169,33 @@ sales_calendar$date <- y
 sales_calendar <- sales_calendar[c(3050,1:3049)]
 
 #join calendar and sales_train_validation
-sales_calendar <- left_join(sales_calendar, calendar, by = "date")
+sales_calendar <- left_join(sales_calendar, cal, by = "date")
 ```
 
-*sell_price analysis*
 
 Max, min and average price for each product
-```{r}
+```{r echo=FALSE}
 price_TX1 <- sell_prices %>% 
   filter(store_id == "TX_1")
 
 price_TX1 %>% 
   group_by(item_id) %>%
   summarise(max = max(sell_price), min = min(sell_price), avg = round(mean(sell_price), digits = 2)) %>%
-  kable()
+  kable() %>% 
+  kable_styling() %>%
+  scroll_box(width = "100%", height = "200px")
 ```
 
 Evolution of prices over time
-```{r}
+
+```{r echo=FALSE}
 #price avolution for one product in particular
 price_TX1 %>%
   filter(item_id == "FOODS_3_794") %>% 
   ggplot(x, mapping = aes(wm_yr_wk, sell_price)) +
   geom_line() +
   labs(x = "weeks", y = "price", size = 10) +
-  labs(title = "Evolution of prices through time")
+  labs(title = "Evolution of prices over time")
 
 #price evolution by departement
 price_TX1 %>%
@@ -145,7 +204,52 @@ price_TX1 %>%
   mutate(avg_price = mean(sell_price)) %>%
   ggplot() +
   geom_line(aes(wm_yr_wk, avg_price, color = category)) +
-  labs(x = "weeks", y = "average prices", size = 10)+labs(title = "Evolution of prices through time by category")
+  labs(x = "weeks", y = "average prices", size = 10)+labs(title = "Evolution of prices over time by category")
 
+```
+
+Time serie
+```{r}
+tx1 <- ts(tdf3[,-(1:2)], start = c(2011, 29), end = c(2016, 170), frequency = 365)
+
+
+splitted <- do.call(rbind, stri_split_fixed(df$id, '_'))[,1:5]
+# 2) Normalise the category names
+splitted[,1] <- substr(splitted[,1], 1, 3)
+hts_ids <- apply(splitted, 1, paste0, collapse = '')
+
+# Create the hts object by specifying which parts of the series name correspond
+# to which level of the hierarchy
+tx1.h <- hts(tx1, bnames = hts_ids, characters = c(3,1,6))
+
+
+tx1.h %>% aggts(levels=0:1) %>%
+  autoplot(facet=TRUE)
+```
+
+Total and by category
+```{r}
+tx1.h %>% aggts(levels=0:1) %>%
+  autoplot(facet=TRUE)
+```
+
+By departement
+```{r}
+tx1.h %>% aggts(levels=2) %>%
+  autoplot(facet=TRUE)
+```
+
+```{r}
+tx1.fc <- forecast(tx1.h, h = 28, method = "bu", fmethod = "rw",
+                   keep.fitted = TRUE)
+
+eggs <- rwf(tx1, drift=TRUE, lambda=0, h=50, level=80)
+
+autoplot(tx1) + autolayer(eggs)
+
+
+  autolayer(fc, series="Simple back transformation") +
+  autolayer(fc2, series="Bias adjusted", PI=FALSE) +
+  guides(colour=guide_legend(title="Forecast"))
 ```
 
