@@ -5,15 +5,11 @@ date: "4/8/2020"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
-
-```{r data}
-calendar <- read_csv("~/Desktop/MASTER/2ème Semestre/Forecasting 2/m5-forecasting-accuracy 2/calendar.csv")
-sales_train_validation <- read_csv("~/Desktop/MASTER/2ème Semestre/Forecasting 2/m5-forecasting-accuracy 2/sales_train_validation.csv")
-sell_prices <- read_csv("~/Desktop/MASTER/2ème Semestre/Forecasting 2/m5-forecasting-accuracy 2/sell_prices.csv")
+```{r data, include=FALSE}
+calendar <- read_csv("~/Documents/GitHub/forecasting_2/Data/calendar.csv")
+sales_train_validation <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
+sell_prices <- read_csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
 ```
 
 
@@ -122,12 +118,7 @@ ggsdc(calendar2, aes(x = date, y=Sales_per_day_TX1),
 
 
 
-```{r}
-sales_TX1 %>%
-  inner_join(sell_prices, by = "item_id")
 
-
-```
 
 
 
