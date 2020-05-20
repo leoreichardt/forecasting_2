@@ -1,0 +1,213 @@
+---
+title: "EDA (time series)"
+author: "Raffaello Raffin"
+date: "5/20/2020"
+output: html_document
+---
+
+
+```{r}
+# Load data
+df <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
+df <- data.frame(df, stringsAsFactors = FALSE)
+df <- within(df, 
+             item_id <- as.factor(item_id),
+             dept_id <- as.factor(dept_id),
+             cat_id <- as.factor(cat_id))
+cal <- read.csv("~/Documents/GitHub/forecasting_2/Data/calendar.csv", na.strings = "")
+prices <- read_csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
+prices <- data.frame(prices, stringsAsFactors = FALSE)
+```
+
+
+```{r}
+# Subset to a specific store
+df <- subset(df, store_id == "TX_1")
+ 
+# Take only the sales columns and transpose them
+tdf <- t(df[,7:ncol(df)])
+
+# Add "NA" values for the validation days;
+# Could also drop the extra columns from from `cal`
+tdf2 <- rbind(tdf, 
+              matrix(NA, nrow = nrow(cal) - nrow(tdf),
+                     ncol = ncol(tdf)))
+tdf3 <- data.frame(cbind(cal, tdf2))
+
+# Add in the unique names for each column
+colnames(tdf3) <- c(colnames(tdf3)[1:14], df$id)
+```
+
+
+```{r}
+# Add price information: 
+# 1) Reshape the price data to have time series in rows, not columns
+# 2) Since the prices are given per week, repeat them accordingly to 
+#    get a full time series
+# 3) For those prices which are absent at the beginning of the data,
+#    we fill the missing values with the first observed price.
+
+# 1)
+prices <- subset(prices, store_id == "TX_1") %>% select(-store_id,) %>%
+  spread(item_id, sell_price)
+colnames(prices) <- c("wm_yr_wk", paste0("PRICE_", colnames(prices)[-1]))
+
+# 2)
+repetitions <- table(tdf3$wm_yr_wk)
+prices_full <- data.frame(wm_yr_wk = rep(prices$wm_yr_wk, times = repetitions))
+for (j in 2:ncol(prices))
+  prices_full <- cbind(prices_full, rep(prices[,j], times = repetitions))
+colnames(prices_full) <- colnames(prices)
+
+# 3)
+are_na_at_beginning <- is.na(prices_full[1,])
+for (j in which(are_na_at_beginning)) {
+  first_non_na <- which(!is.na(prices_full[,j]))[1]
+  prices_full[1:first_non_na,j] <- prices_full[first_non_na, j]
+}
+```
+
+
+```{r}
+# Finally, combine all the data (volume + calendar + prices)
+tdf4 <- merge(tdf3, prices_full, by = "wm_yr_wk")
+```
+
+
+```{r}
+# In the following, we discard the price part and work only with the volume data.
+
+# When using `hts`, we first need to create a multivariate time series object;
+# for this we discard several calendar columns which are redundant.
+TX1 <- ts(tdf3[,-(1:14)], frequency = 7)
+training_set <- TX1[1:1857,]   ## on a 1913 jours avec data --> enlève 2x 28 (test/validation set)
+validation_set <- TX1[1858:1885,]  ## on prend les premiers 28 jours qui serviront de test
+```
+
+
+```{r}
+# Next we have to create a way of denoting which series is nested in another.
+# This is done by supplying the `bnames` argument to hts(), and here 
+# we create the corresponding names by truncating the category names to 3 letters.
+
+# 1) Separate out the parts in the id column
+splitted <- do.call(rbind, stri_split_fixed(df$id, '_'))[,1:5]
+# 2) Normalise the category names
+splitted[,1] <- substr(splitted[,1], 1, 3)
+hts_ids <- apply(splitted, 1, paste0, collapse = '')
+```
+
+
+```{r}
+# Create the hts object by specifying which parts of the series name correspond
+# to which level of the hierarchy
+ts_all <- hts(TX1, bnames = hts_ids, characters = c(3,1,6))
+training_set <- hts(training_set, bnames = hts_ids, characters = c(3,1,6))
+validation_set <- hts(validation_set, bnames = hts_ids, characters = c(3,1,6))
+```
+
+
+
+
+## First we look at the plots
+
+```{r}
+training_set %>% aggts(level = 0) %>% 
+  autoplot() +
+  theme_bw() +
+  labs(title = "TX1",
+       subtitle = "Daily data",
+       x = "Time",
+       y = "Sales (#)") +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
+```{r}
+training_set %>% aggts(levels=1) %>%
+  autoplot(facet=TRUE) +
+   theme_bw() +
+  labs(title = "Categories",
+       subtitle = "Daily data",
+       x = "Time",
+       y = "Sales (#)") +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5)) +
+  theme(strip.background = element_rect(fill="#69b3a2"))
+```
+
+```{r}
+training_set %>% aggts(levels=2) %>%
+  autoplot(facet=TRUE) +
+   theme_bw() +
+  labs(title = "Departments",
+       subtitle = "Daily data",
+       x = "Time",
+       y = "Sales (#)") +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5)) +
+  theme(strip.background = element_rect(fill="#404080")) +
+  theme(strip.text = element_text(colour = 'white'))
+```
+
+```{r}
+#ggseasonplot
+
+
+
+```
+
+```{r}
+#ggsubseriesplot()
+
+
+```
+
+```{r}
+#we have high frequency data (daily)
+#mstl: Decompose a time series into seasonal, trend and remainder components.
+
+ts_all %>% aggts(levels=0) %>% 
+  mstl() %>% 
+  autoplot() +
+  theme_bw() +
+  labs(title = "Decomposition with mstl",
+       subtitle = "Level 0") +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5)) 
+```
+
+```{r ACF1095}
+training_set %>% aggts(levels=0) %>% 
+  ggAcf(lag.max = 1095) +
+  theme_bw() +
+  labs(title = "Correlogram",
+       subtitle = "Level 0") +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5)) 
+
+#The slow decrease in the ACF as the lags increase is due to the trend, while the “scalloped” shape is due the seasonality.
+```
+
+```{r ACF365}
+training_set %>% aggts(levels=0) %>% 
+  ggAcf(lag.max = 365) +
+  theme_bw() +
+  labs(title = "Correlogram",
+       subtitle = "Level 0") +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5)) 
+
+#The slow decrease in the ACF as the lags increase is due to the trend, while the “scalloped” shape is due the seasonality.
+```
+
+```{r ACF30}
+training_set %>% aggts(levels=0) %>% 
+  ggAcf(lag.max = 30) +
+  theme_bw() +
+  labs(title = "Correlogram",
+       subtitle = "Level 0") +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5)) 
+```
+

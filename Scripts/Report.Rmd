@@ -1,0 +1,24 @@
+---
+title: "Report"
+author: "Jeremy Bayer, Leo Reichard, Raffaello Raffin"
+date: "5/20/2020"
+output: 
+  html_document:
+    css: style.css
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r include=FALSE}
+#set some options for the chunks
+knitr::opts_chunk$set(
+  fig.align = 'center'
+)
+```
+
+```{r child = 'Exploratory Data Analysis.Rmd'}
+```
+
+```{r child = 'EDA (time series.Rmd'}
+```

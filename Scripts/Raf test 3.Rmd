@@ -1,0 +1,297 @@
+---
+title: "Modeling at level_0 with ARIMA"
+author: "Raffaello Raffin"
+date: "5/20/2020"
+output: html_document
+---
+
+```{r libraries, include=FALSE}
+library(readr)
+library(hts)
+library(stringi)
+library(dplyr)
+library(stringr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+```
+
+
+```{r load data, message=FALSE, warning=FALSE, include=FALSE}
+# Load data
+df <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
+df <- data.frame(df, stringsAsFactors = FALSE)
+df <- within(df, 
+             item_id <- as.factor(item_id),
+             dept_id <- as.factor(dept_id),
+             cat_id <- as.factor(cat_id))
+cal <- read.csv("~/Documents/GitHub/forecasting_2/Data/calendar.csv", na.strings = "")
+prices <- read_csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
+prices <- data.frame(prices, stringsAsFactors = FALSE)
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Subset to a specific store
+df <- subset(df, store_id == "TX_1")
+ 
+# Take only the sales columns and transpose them
+tdf <- t(df[,7:ncol(df)])
+
+# Add "NA" values for the validation days;
+# Could also drop the extra columns from from `cal`
+tdf2 <- rbind(tdf, 
+              matrix(NA, nrow = nrow(cal) - nrow(tdf),
+                     ncol = ncol(tdf)))
+tdf3 <- data.frame(cbind(cal, tdf2))
+
+# Add in the unique names for each column
+colnames(tdf3) <- c(colnames(tdf3)[1:14], df$id)
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Add price information: 
+# 1) Reshape the price data to have time series in rows, not columns
+# 2) Since the prices are given per week, repeat them accordingly to 
+#    get a full time series
+# 3) For those prices which are absent at the beginning of the data,
+#    we fill the missing values with the first observed price.
+
+# 1)
+prices <- subset(prices, store_id == "TX_1") %>% select(-store_id,) %>%
+  spread(item_id, sell_price)
+colnames(prices) <- c("wm_yr_wk", paste0("PRICE_", colnames(prices)[-1]))
+
+# 2)
+repetitions <- table(tdf3$wm_yr_wk)
+prices_full <- data.frame(wm_yr_wk = rep(prices$wm_yr_wk, times = repetitions))
+for (j in 2:ncol(prices))
+  prices_full <- cbind(prices_full, rep(prices[,j], times = repetitions))
+colnames(prices_full) <- colnames(prices)
+
+# 3)
+are_na_at_beginning <- is.na(prices_full[1,])
+for (j in which(are_na_at_beginning)) {
+  first_non_na <- which(!is.na(prices_full[,j]))[1]
+  prices_full[1:first_non_na,j] <- prices_full[first_non_na, j]
+}
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Finally, combine all the data (volume + calendar + prices)
+tdf4 <- merge(tdf3, prices_full, by = "wm_yr_wk")
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# In the following, we discard the price part and work only with the volume data.
+
+# When using `hts`, we first need to create a multivariate time series object;
+# for this we discard several calendar columns which are redundant.
+TX1 <- ts(tdf3[,-(1:14)], frequency = 7)
+training_set <- TX1[1:1857,]   ## on a 1913 jours avec data --> enlève 2x 28 (test/validation set)
+validation_set <- TX1[1858:1885,]  ## on prend les premiers 28 jours qui serviront de test
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Next we have to create a way of denoting which series is nested in another.
+# This is done by supplying the `bnames` argument to hts(), and here 
+# we create the corresponding names by truncating the category names to 3 letters.
+
+# 1) Separate out the parts in the id column
+splitted <- do.call(rbind, stri_split_fixed(df$id, '_'))[,1:5]
+# 2) Normalise the category names
+splitted[,1] <- substr(splitted[,1], 1, 3)
+hts_ids <- apply(splitted, 1, paste0, collapse = '')
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Create the hts object by specifying which parts of the series name correspond
+# to which level of the hierarchy
+ts_all <- hts(TX1, bnames = hts_ids, characters = c(3,1,6))
+training_set <- hts(training_set, bnames = hts_ids, characters = c(3,1,6))
+validation_set <- hts(validation_set, bnames = hts_ids, characters = c(3,1,6))
+```
+
+
+## Modeling at level_0 with ARIMA
+
+In the Exploratory Data Analysis, we could see that our data had different seasonality. The weekly seasonality was particularly marked. So we decided to create a time series with a frequency of 7 days.
+
+In the next section, we will try to fit an Arima model in different ways on the top level (TX1).
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#take only level 0
+train_set <- training_set %>% aggts(levels=0)
+val_set <- validation_set %>% aggts(levels=0)
+```
+
+
+### Auto.arima without transformation
+
+To start, I simply apply the auto.arima function to make an Arima automatically without any prior transformation. The approximation and stepwise parameters are set to “FALSE”. I then carry out a forecast for the next 28 days and calculate the accuracy using the validation set (which corresponds to the same period).
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#auto.arima sans tranformation préalable + forecast
+model_auto <- train_set %>% auto.arima(approximation = FALSE, stepwise = FALSE)
+checkresiduals(model_auto) 
+
+#forecast
+fc <- model_auto %>% forecast(h=28)
+fc <- data.frame(fc)
+fc <- ts(fc)
+
+acc <- accuracy(fc, val_set)
+kableExtra::kable(acc,
+    caption = "<center><strong>28 days forcecast accuracy metrics</strong></center>",
+    escape = FALSE,
+    format = "html")%>%
+    kableExtra::kable_styling(
+        bootstrap_options = c("striped","bordered"),
+        full_width = F)
+
+#plot
+ autoplot(val_set) +
+  autolayer(fc, lty=2) +
+   theme_bw() +
+   labs(title = "Observations & Predictions",
+        subtitle = "With confidence interval") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
+By looking at the residuals, we see that our model does not capture all the information contained in our data. We will, therefore, carry out two new tests by performing transformations ourselves before applying the auto.arima function.
+
+
+### Auto.arima with transformation
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#auto.arima avec transformation préalable
+diff_train_set <- diff(train_set, lag = 7)
+p1 <- plot(diff_train_set)
+p2 <- ggAcf(diff_train_set, lag.max = 90)
+library(ggpubr)
+ggarrange(p1, p2, nrow = 2)
+
+model_autoB <- diff_train_set %>% auto.arima(approximation = FALSE, stepwise = FALSE)
+checkresiduals(model_autoB)
+
+#forecast
+fcB <- model_autoB %>% forecast(h=28)
+fcB <- data.frame(fcB)
+fcB <- ts(fcB)
+
+diff_validation_set <- diff(val_set, lag = 7)
+accB <- accuracy(fcB, diff_validation_set)
+View(accB)
+
+#plot
+ autoplot(val_set) +
+  autolayer(fcB, lty=2) +
+   theme_bw() +
+      labs(title = "Observations & Predictions",
+        subtitle = "With confidence interval") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
+In this test, we apply a differentiation with a lag of 7 and the auto.arima gives us an ARIMA(5,0,1) which shows us that it did not apply any additional differentiation.
+
+The ACF seems better but the Ljung-Box test still tells us that the residues of our model do not come from a white noise.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#auto.arima avec transformation préalable
+diff_train_set <- diff(train_set, lag = 30)
+plot(diff_train_set)
+ggAcf(diff_train_set, lag.max = 90)
+
+model_autoC <- diff_train_set %>% auto.arima(approximation = FALSE, stepwise = FALSE)
+checkresiduals(model_autoC)
+
+#forecast
+fcC <- model_autoC %>% forecast(h=28)
+fcC <- data.frame(fcC)
+fcC <- ts(fcC)
+
+diff_validation_set <- diff(val_set, lag = 7)
+accC <- accuracy(fcC, diff_validation_set)
+View(accC)
+
+#plot
+autoplot(val_set) +
+  autolayer(fcC, lty=2) +
+   theme_bw() +
+     labs(title = "Observations & Predictions",
+        subtitle = "With confidence interval") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
+During this second test, we first apply a differentiation with a 30-day lag.
+
+the ACF of our transformed data seems still not satisfactory.
+
+Once again, the residuals of our model follow a normal law centered around zero but these always contain information not taken into account by the model.
+
+Same conclusion when looking at the result of the Ljung-Box test.
+
+
+### Auto.arima with transformation and regressor
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+tdf <- t(df[,7:ncol(df)])
+
+tdf2 <- rbind(tdf, 
+              matrix(NA, nrow = nrow(cal) - nrow(tdf),
+                     ncol = ncol(tdf)))
+tdf3 <- data.frame(cbind(cal, tdf2))
+
+colnames(tdf3) <- c(colnames(tdf3)[1:14], df$id)
+
+
+tdf3$Christmas <- ifelse(tdf3$event_name_1 == "Christmas", 1,0)
+tdf3$Christmas[is.na(tdf3$Christmas)] = 0
+
+tdf3$IndependenceDay <- ifelse(tdf3$event_name_1 == "IndependenceDay", 1,0)
+tdf3$IndependenceDay[is.na(tdf3$IndependenceDay)] = 0
+
+tdf3$SuperBowl <- ifelse(tdf3$event_name_1 == "SuperBowl", 1,0)
+tdf3$SuperBowl[is.na(tdf3$SuperBowl)] = 0
+
+
+specialDays_modeling <- cbind(tdf3$IndependenceDay[1:1857],tdf3$SuperBowl[1:1857], tdf3$Christmas[1:1857])
+specialDays_forecasting <- cbind(tdf3$IndependenceDay[1858:1885],tdf3$SuperBowl[1858:1885], tdf3$Christmas[1858:1885])
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#auto.arima avec transformation préalable
+diff_train_set <- diff(train_set, lag = 7)
+plot(diff_train_set)
+ggAcf(diff_train_set, lag.max = 90)
+
+model_autoB <- diff_train_set %>% auto.arima(approximation = FALSE, stepwise = FALSE, xreg = specialDays_modeling[-(1:7),])
+#forecast
+fcB <- model_autoB %>% forecast(h=28, xreg = specialDays_forecasting) 
+fcB <- data.frame(fcB)
+fcB <- ts(fcB)
+
+diff_validation_set <- diff(val_set, lag = 7)
+accB <- accuracy(fcB, diff_validation_set)
+View(accB)
+
+#plot
+autoplot(val_set) +
+  autolayer(fcB, lty=2) +
+   theme_bw() +
+     labs(title = "Observations & Predictions",
+        subtitle = "With confidence interval") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
+

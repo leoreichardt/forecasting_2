@@ -39,8 +39,56 @@ sales_StateTX <- sales_train_validation %>% filter(state_id == "TX")
 sales_StateTX <- sales_StateTX %>% mutate(tot_sales = rowSums(.[7:1919])) 
 
 ## total sales for State TX
-sum2 <- sales_StateTX$tot_sales %>% sum()
+sum2 <- sales_StateTX$tot_sales %>% sum() %>% as.data.frame()
+
+TX <- sum2 %>% mutate("State" = "Texas")
+TX <- TX %>% rename("Sales" =".")
 ```
+
+### state CA
+```{r}
+## Sales for State CA
+sales_StateCA <- sales_train_validation %>% filter(state_id == "CA")
+
+## add column with total sales per product
+sales_StateCA <- sales_StateCA %>% mutate(tot_sales = rowSums(.[7:1919])) 
+
+## total sales for State CA
+sum3 <- sales_StateCA$tot_sales %>% sum() %>% as.data.frame()
+
+CA <- sum3 %>% mutate("State" = "CA")
+CA <- CA %>% rename("Sales" =".")
+```
+
+### state WI
+```{r}
+## Sales for State WI
+sales_StateWI <- sales_train_validation %>% filter(state_id == "WI")
+
+## add column with total sales per product
+sales_StateWI <- sales_StateWI %>% mutate(tot_sales = rowSums(.[7:1919])) 
+
+## total sales for State WI
+sum4 <- sales_StateWI$tot_sales %>% sum() %>% as.data.frame()
+
+WI <- sum4 %>% mutate("State" = "WI")
+WI <- WI %>% rename("Sales" =".")
+```
+
+combine
+```{r}
+all_states <- rbind(TX, CA, WI)
+
+all_states %>%
+  ggplot(aes(x = State, y = Sales, fill = State)) +
+  geom_col() +
+  theme_bw() +
+  labs(title = "Repartition of sales between States") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+```
+
+
 
 
 

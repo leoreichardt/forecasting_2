@@ -113,47 +113,166 @@ TX1.h <- hts(TX1, bnames = hts_ids, characters = c(3,1,6))
 ```
 
 
-## Forecast
-
 ```{r}
-# Create training set
-training_set <- window(TX1.h, start = c(2011, 29), end = c(2016, 60))
-validation_set <- window(TX1.h, start = c(2016, 61), end = c(2016, 88)) 
+#we keep only 3 levels
+hts_ids_level0_1 <- str_sub(hts_ids, end = 4) %>% unique()
+  
+lvl0_1 <- TX1.h %>% aggts(levels=0:2)
+
+TX1_lvl0_1 <- hts(lvl0_1, bnames = hts_ids_level0_1, characters = c(3,1))
 ```
 
-#### Top-down approach
+
+```{r}
+# Create training and validation set
+training_set <- window(TX1_lvl0_1, start = c(2011, 29), end = c(2016, 60))
+validation_set <- window(TX1_lvl0_1, start = c(2016, 61), end = c(2016, 88)) 
+all <- window(TX1_lvl0_1, start = c(2011, 29), end = c(2016, 88))
+```
+
+
+# Forecast
 
 ```{r}
 #forecast
-TX1.fc4 <- forecast(training_set, h = 28, method = "tdfp", fmethod = "rw")
+f1 <- forecast(training_set, h = 28, method = "bu", fmethod = "arima")
 
 # To get the accuracy measures:
-acc <- accuracy.gts(TX1.fc4, validation_set)
+acc <- accuracy.gts(f1, validation_set)
 View(acc)
+#RMSE 1358.87
 
-plot(TX1.fc4, include = 120, levels = 0)
+f1 %>% 
+  aggts(levels = 0) %>%
+  checkresiduals()
+
+
+#objectif: trouver des plots sympa
+library(ggplot2)
+plot(f1, levels = 0, include = 30) 
+
+ autoplot(aggts(validation_set, level=0)) +
+  autolayer(aggts(f1, level=0), lty=2) +
+   theme_bw() #du lourd
+ 
+ 
+f1 %>% aggts(levels = 0) %>% ts(frequency = 365) %>% autoplot()
+```
+
+```{r}
+#forecast
+f7 <- forecast(training_set, h = 28, method = "bu", fmethod = "ets")
+
+# To get the accuracy measures:
+a7 <- accuracy.gts(f7, validation_set)
+View(a7)
+#RMSE 1502
+
+f7 %>% 
+  aggts(levels = 0) %>%
+  checkresiduals()
+
+ autoplot(aggts(validation_set, level=0)) +
+  autolayer(aggts(f7, level=0), lty=2) +
+   theme_bw()
 ```
 
 
 ```{r}
+#change frequency
+TX1B <- ts(tdf3[,-(1:14)], frequency = 7)
+
+training_setb <- TX1B[1:1857,]  
+validation_setb <- TX1B[1858:1885,]
+
+#get hts id
+splitted <- do.call(rbind, stri_split_fixed(df$id, '_'))[,1:5]
+splitted[,1] <- substr(splitted[,1], 1, 3)
+hts_ids <- apply(splitted, 1, paste0, collapse = '')
+
+#training set
+hts_train_b <- hts(training_setb, bnames = hts_ids, characters = c(3,1,6))
+lvl0_1b <- hts_train_b %>% aggts(levels=0:2)
+hts_ids_level0_1b <- str_sub(hts_ids, end = 4) %>% unique()
+hts_trainb01 <- hts(lvl0_1b, bnames = hts_ids_level0_1b, characters = c(3,1))
+
+#validation set
+hts_val_b <- hts(validation_setb, bnames = hts_ids, characters = c(3,1,6))
+lvl0_1b_val <- hts_val_b %>% aggts(levels=0:2)
+hts_ids_level0_1b <- str_sub(hts_ids, end = 4) %>% unique()
+hts_valb01 <- hts(lvl0_1b_val, bnames = hts_ids_level0_1b, characters = c(3,1))
+```
+
+```{r}
 #forecast
-TX1.fc6 <- forecast(training_set, h = 28, method = "tdfp", fmethod = "arima")
+f2 <- forecast(hts_trainb01, h = 28, method = "comb", weights = "mint", covariance = "shr")
 
 # To get the accuracy measures:
-acc6 <- accuracy.gts(TX1.fc6, validation_set)
-View(acc)
+a2 <- accuracy.gts(f2, hts_valb01)
+View(a2)
+#RMSE 1502
 
-plot(TX1.fc6, include = 120, levels = 0)
+f2 %>% 
+  aggts(levels = 0) %>%
+  checkresiduals()
+
+plot(f2, include = 90, levels = 0) 
 ```
+
+```{r}
+#forecast
+f3 <- forecast(hts_trainb01, h = 28, method = "bu", fmethod = "ets")
+
+# To get the accuracy measures:
+a3 <- accuracy.gts(f3, hts_valb01)
+View(a3)
+#RMSE 1508
+
+f3 %>% 
+  aggts(levels = 0) %>%
+  checkresiduals()
+
+plot(f3, include=90, levels = 0)
+```
+
+```{r}
+training_set3 <- window(TX1.h, start = c(2011, 29), end = c(2016, 60))
+validation_set3 <- window(TX1.h, start = c(2016, 61), end = c(2016, 88)) 
+
+#forecast
+f10 <- forecast(training_set3, h = 28, method = "bu", fmethod = "arima")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ```{r}
 #forecast
-TX1.fc5 <- forecast(training_set2, h = 28, method = "tdfp", fmethod = "ets")
+TX1.fc5 <- forecast(training_set, h = 28, method = "tdfp", fmethod = "ets")
+
+#doesn't work with frequ more than 24
 
 # To get the accuracy measures:
-acc5 <- accuracy.gts(TX1.fc5, validation_set2)
+acc5 <- accuracy.gts(TX1.fc5, validation_set)
 View(acc5)
+
+#RMSE 429 with frequ 12
 
 plot(TX1.fc5, include = 120, levels = 0)
 ```
@@ -163,38 +282,41 @@ plot(TX1.fc5, include = 120, levels = 0)
 
 ```{r}
 #forecast
-TX1.fc <- forecast(TX1.h, h = 28, method = "bu", fmethod = "rw", keep.fitted = TRUE)
+TX1.fc <- forecast(training_set, h = 28, method = "bu", fmethod = "rw")
 
 # To get the accuracy measures:
-acc <- accuracy.gts(TX1.fc)
+acc <- accuracy.gts(TX1.fc, validation_set)
 View(acc)
+
+#RMSE 908
 
 plot(TX1.fc, include = 90, levels = 0)
 ```
 
 
+
+
+
+
+
+
+
+
+
+
 #### Comb approach
 
-```{r}
-#forecast
-TX1.fc2 <- forecast(TX1.h, h = 28, method = "comb", weights = "mint", covariance = "shr", fmethod = "rw", keep.fitted = TRUE)
-
-# To get the accuracy measures:
-acc2 <- accuracy.gts(TX1.fc2)
-View(acc2)
-
-plot(TX1.fc2, include = 90, levels = 0) 
-```
-
 
 ```{r}
 #forecast
-TX1.fc3 <- forecast(TX1.h, h = 28, method = "comb", weights = "mint", covariance = "shr")
+TX1.fc3 <- forecast(training_set2, h = 1, method = "comb", weights = "mint", covariance = "shr")
 
-# I can't handle data with frequency greater than 24. Seasonality will be ignored. Try stlf() if you need seasonal forecasts.
+# I can't handle data with frequency greater than 24. Seasonality will be ignored. Try stlf() if you need seasonal forecasts. (error message)
+
+#Error in if (!is.symmetric.matrix(x)) stop("argument x is not a symmetric matrix") : missing value where TRUE/FALSE needed
 
 # To get the accuracy measures:
-acc3 <- accuracy.gts(TX1.fc3)
+acc3 <- accuracy.gts(TX1.fc3, validation_set2)
 View(acc3)
 
 plot(TX1.fc3, include = 90, levels = 0) 
@@ -224,18 +346,6 @@ plot(TX1.h, levels = 1)
 
 
 
-```{r}
-TXfrequ12 <- ts(tdf3[,-(1:14)], start = c(2011, 29), end = c(2016, 116), frequency = 12)
-splitted <- do.call(rbind, stri_split_fixed(df$id, '_'))[,1:5]
-splitted[,1] <- substr(splitted[,1], 1, 3)
-hts_ids <- apply(splitted, 1, paste0, collapse = '')
-TXfrequ12.h <- hts(TXfrequ12, bnames = hts_ids, characters = c(3,1,6))
 
-training_set2 <- window(TXfrequ12.h, start = c(2011, 29), end = c(2016, 60))
-validation_set2 <- window(TXfrequ12.h, start = c(2016, 61), end = c(2016, 88)) 
 
-plot(TXfrequ12.h, include = 120, levels = 0)
 
-TXfrequ12.h %>% aggts(levels=1:2) %>%
-  autoplot(facet=TRUE) 
-```

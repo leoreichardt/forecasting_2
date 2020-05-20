@@ -16,6 +16,8 @@ library(kableExtra)
 calendar <- read_csv("~/Documents/GitHub/forecasting_2/Data/calendar.csv")
 sales_train_validation <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
 sell_prices <- read_csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
+
+tx1 <- sales_train_validation %>% filter(store_id == "TX_1")
 ```
 
 ## Plan
