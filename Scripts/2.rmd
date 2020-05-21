@@ -1,26 +1,40 @@
 ---
-title: "EDA (time series)"
+title: "EDA time series"
 author: "Raffaello Raffin"
 date: "5/20/2020"
 output: html_document
 ---
 
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+library(hts)
+library(stringi)
+library(dplyr)
+library(stringr)
+library(purrr)
+library(tidyr)
+library(lubridate)
+library(knitr)
+library(ggplot2)
+library(kableExtra)
+library(timeSeries)
+```
 
-```{r}
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Load data
-df <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
+df <- read.csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
 df <- data.frame(df, stringsAsFactors = FALSE)
 df <- within(df, 
              item_id <- as.factor(item_id),
              dept_id <- as.factor(dept_id),
              cat_id <- as.factor(cat_id))
 cal <- read.csv("~/Documents/GitHub/forecasting_2/Data/calendar.csv", na.strings = "")
-prices <- read_csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
+prices <- read.csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
 prices <- data.frame(prices, stringsAsFactors = FALSE)
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Subset to a specific store
 df <- subset(df, store_id == "TX_1")
  
@@ -39,7 +53,7 @@ colnames(tdf3) <- c(colnames(tdf3)[1:14], df$id)
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Add price information: 
 # 1) Reshape the price data to have time series in rows, not columns
 # 2) Since the prices are given per week, repeat them accordingly to 
@@ -68,13 +82,13 @@ for (j in which(are_na_at_beginning)) {
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Finally, combine all the data (volume + calendar + prices)
 tdf4 <- merge(tdf3, prices_full, by = "wm_yr_wk")
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # In the following, we discard the price part and work only with the volume data.
 
 # When using `hts`, we first need to create a multivariate time series object;
@@ -85,7 +99,7 @@ validation_set <- TX1[1858:1885,]  ## on prend les premiers 28 jours qui serviro
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Next we have to create a way of denoting which series is nested in another.
 # This is done by supplying the `bnames` argument to hts(), and here 
 # we create the corresponding names by truncating the category names to 3 letters.
@@ -98,7 +112,7 @@ hts_ids <- apply(splitted, 1, paste0, collapse = '')
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Create the hts object by specifying which parts of the series name correspond
 # to which level of the hierarchy
 ts_all <- hts(TX1, bnames = hts_ids, characters = c(3,1,6))
@@ -106,12 +120,9 @@ training_set <- hts(training_set, bnames = hts_ids, characters = c(3,1,6))
 validation_set <- hts(validation_set, bnames = hts_ids, characters = c(3,1,6))
 ```
 
+## Time series
 
-
-
-## First we look at the plots
-
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(level = 0) %>% 
   autoplot() +
   theme_bw() +
@@ -123,7 +134,9 @@ training_set %>% aggts(level = 0) %>%
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-```{r}
+When you look at sales by day, there seems to be an annual seasonality, and you can see the Christmas day when the store is closed each year. Sales are a bit lower at the beginning.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=1) %>%
   autoplot(facet=TRUE) +
    theme_bw() +
@@ -136,7 +149,10 @@ training_set %>% aggts(levels=1) %>%
   theme(strip.background = element_rect(fill="#69b3a2"))
 ```
 
-```{r}
+If we decompose the time series by category, the seasonality we observed seems to come only from FOOD. We always see sales at zero on Christmas Day. The lower sales at the beginning of the data that could be seen in the previous plot come only from HOUSEHOLD. This may be due to the fact that not all products were sold at the beginning of the data.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=2) %>%
   autoplot(facet=TRUE) +
    theme_bw() +
@@ -150,20 +166,7 @@ training_set %>% aggts(levels=2) %>%
   theme(strip.text = element_text(colour = 'white'))
 ```
 
-```{r}
-#ggseasonplot
-
-
-
-```
-
-```{r}
-#ggsubseriesplot()
-
-
-```
-
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 #we have high frequency data (daily)
 #mstl: Decompose a time series into seasonal, trend and remainder components.
 
@@ -171,13 +174,15 @@ ts_all %>% aggts(levels=0) %>%
   mstl() %>% 
   autoplot() +
   theme_bw() +
-  labs(title = "Decomposition with mstl",
+  labs(title = "Decomposition",
        subtitle = "Level 0") +
     theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5)) 
 ```
 
-```{r ACF1095}
+As we have daily data, we may have several seasonalities. We use the mstl function which allows us to make a decomposition between different seasonalities, the trend and the residuals. Here we see a weekly seasonality, but it seems that there is still a seasonality in the trend.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=0) %>% 
   ggAcf(lag.max = 1095) +
   theme_bw() +
@@ -189,9 +194,9 @@ training_set %>% aggts(levels=0) %>%
 #The slow decrease in the ACF as the lags increase is due to the trend, while the “scalloped” shape is due the seasonality.
 ```
 
-```{r ACF365}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=0) %>% 
-  ggAcf(lag.max = 365) +
+  ggAcf(lag.max = 180) +
   theme_bw() +
   labs(title = "Correlogram",
        subtitle = "Level 0") +
@@ -201,7 +206,9 @@ training_set %>% aggts(levels=0) %>%
 #The slow decrease in the ACF as the lags increase is due to the trend, while the “scalloped” shape is due the seasonality.
 ```
 
-```{r ACF30}
+On the ACF with a lag of 180, a monthly seasonality can be identified. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=0) %>% 
   ggAcf(lag.max = 30) +
   theme_bw() +
@@ -210,4 +217,14 @@ training_set %>% aggts(levels=0) %>%
       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5)) 
 ```
+
+When the lags are reduced, the 7-day seasonality of the data is clearly identified. 
+
+## Conclusion of EDA
+
+This EDA helps us to familiarize ourselves with the general data and more specifically with our TX_1 store. As far as sales are concerned, there is no particular trend, but slightly lower sales at the beginning of the observed period, probably due to the fact that not all products are on sale since the beginning.  There is a weekly and a monthly seasonality. The problem with a monthly frequency is its lack of consistency, as not all months have the same number of days and using a frequency of 30 or 31 would create a bias. Thus, we will not take the monthly seasonnality into account in our models. 
+
+We see that the store is closed every year at Christmas, which is an important element that we will have to take into account in our models afterwards. It is not a seasonality but a repetitive event once a year. 
+
+Finally, the only event that has taken place during the 28 days that we have to predict is Independence Day, which takes place on the 4th of July each year. We will also have to take into account the influence of this event in our models. 
 

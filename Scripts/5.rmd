@@ -1,0 +1,14 @@
+---
+title: "Conclusion"
+author: "Raffaello Raffin"
+date: "4/20/2020"
+output: html_document
+---
+
+As a conclusion to this report, we have defined two models that seem to us conclusive: an auto arima with a differentiation of 7 and event regressors, as well as ....
+both models are difficult to compare, because the auto arima with differentiation calculates the precision on a validation set which has also been subjected to differentiation. Thus, the MASE, which is our index to compare the performance of our models, is not provided for this model. 
+
+how could we have gone further in the project?
+First of all, we could have included more parameters for the regressor of our model, such as including all the events of the year. For our models, we only included Christmas, which has a considerable effect since it is the only day of the year when the store is closed and therefore sales are at zero, as well as Independence Day which is the only event that will appear in the 28 days that we have to forecast. 
+Then we could have taken into account the monthly seasonality in all the models. But as mentioned before, since the number of days is variable for each month, we could not simply apply a 28 or 30 day differentiation. 
+Finally, another way to improve our predictions would have been to take a lower layer of our data, i.e. to make predictions down to each particular product, and not stop at the second level (dept_id).

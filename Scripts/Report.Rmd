@@ -17,8 +17,18 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r child = 'Exploratory Data Analysis.Rmd'}
+```{r child = '1.rmd'}
 ```
 
-```{r child = 'EDA (time series.Rmd'}
+```{r child = '2.rmd'}
 ```
+
+```{r child = '3.rmd'}
+```
+
+```{r child = '4.rmd'}
+```
+
+```{r child = '5.rmd'}
+```
+

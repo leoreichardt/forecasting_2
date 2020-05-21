@@ -5,6 +5,13 @@ date: "5/20/2020"
 output: html_document
 ---
 
+```{r include=FALSE}
+#set some options for the chunks
+knitr::opts_chunk$set(
+  fig.align = 'center'
+)
+```
+
 ```{r libraries, include=FALSE}
 library(readr)
 library(hts)
@@ -14,10 +21,12 @@ library(stringr)
 library(purrr)
 library(tidyr)
 library(ggplot2)
+library(ggpubr)
+library(gridExtra)
 ```
 
 
-```{r load data, message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 # Load data
 df <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
 df <- data.frame(df, stringsAsFactors = FALSE)
@@ -133,13 +142,18 @@ val_set <- validation_set %>% aggts(levels=0)
 
 ### Auto.arima without transformation
 
-To start, I simply apply the auto.arima function to make an Arima automatically without any prior transformation. The approximation and stepwise parameters are set to “FALSE”. I then carry out a forecast for the next 28 days and calculate the accuracy using the validation set (which corresponds to the same period).
+To start, we simply apply the auto.arima function to make an Arima automatically without any prior transformation. The approximation and stepwise parameters are set to “FALSE”. 
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 #auto.arima sans tranformation préalable + forecast
 model_auto <- train_set %>% auto.arima(approximation = FALSE, stepwise = FALSE)
-checkresiduals(model_auto) 
+checkresiduals(model_auto)
+```
+The result is an ARIMA(5,1,0). Residues are normally distributed and centered around zero but we can see that there is still some dependency (ACF).
 
+I then carry out a forecast for the next 28 days and calculate the accuracy using the validation set (which corresponds to the same period).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 #forecast
 fc <- model_auto %>% forecast(h=28)
 fc <- data.frame(fc)
@@ -159,38 +173,69 @@ kableExtra::kable(acc,
   autolayer(fc, lty=2) +
    theme_bw() +
    labs(title = "Observations & Predictions",
-        subtitle = "With confidence interval") +
+        subtitle = "With confidence interval",
+        y = "Sales") +
        theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-By looking at the residuals, we see that our model does not capture all the information contained in our data. We will, therefore, carry out two new tests by performing transformations ourselves before applying the auto.arima function.
+
 
 
 ### Auto.arima with transformation
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
-#auto.arima avec transformation préalable
-diff_train_set <- diff(train_set, lag = 7)
-p1 <- plot(diff_train_set)
-p2 <- ggAcf(diff_train_set, lag.max = 90)
-library(ggpubr)
-ggarrange(p1, p2, nrow = 2)
+#### Trial A
 
+We could see in the previous test that our model did not capture all the information contained in the data. We will, therefore, carry out two new tests by performing transformations ourselves before applying the auto.arima function.
+
+We will start by applying a differentiation with a lag 7.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#transformation
+diff_train_set <- diff(train_set, lag = 7)
+par(mfrow=c(2,1))
+plot(diff_train_set) 
+ggAcf(diff_train_set, lag.max = 90) +
+  theme_bw() +
+  labs(title = "Correlogram",
+       subtitle = "Differenciated time series") +
+         theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
+We now have a time series centered around zero. We can also notice that we still have a visible seasonality on the time plot and more particularly on the ACF. This shows us a monthly seasonality (d = 30).
+
+We will now apply an auto.arima and see if we get something better in terms of residues compared to our first trial.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#fit model
 model_autoB <- diff_train_set %>% auto.arima(approximation = FALSE, stepwise = FALSE)
 checkresiduals(model_autoB)
+```
 
+This time we have an ARIMA(5,0,1) which shows us that it did not apply any additional differentiation. For the residues, we still don't get something satisfactory but the pattern is less clear than before. The Ljung-Box test confirms that the residues of our model do not come from a white noise.
+
+We'll see with the metrics if our hunch is confirmed.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 #forecast
 fcB <- model_autoB %>% forecast(h=28)
 fcB <- data.frame(fcB)
 fcB <- ts(fcB)
 
 diff_validation_set <- diff(val_set, lag = 7)
+
 accB <- accuracy(fcB, diff_validation_set)
-View(accB)
+kableExtra::kable(accB,
+    caption = "<center><strong>28 days forcecast accuracy metrics</strong></center>",
+    escape = FALSE,
+    format = "html")%>%
+    kableExtra::kable_styling(
+        bootstrap_options = c("striped","bordered"),
+        full_width = F)
 
 #plot
- autoplot(val_set) +
+ autoplot(diff_validation_set) +
   autolayer(fcB, lty=2) +
    theme_bw() +
       labs(title = "Observations & Predictions",
@@ -199,30 +244,52 @@ View(accB)
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-In this test, we apply a differentiation with a lag of 7 and the auto.arima gives us an ARIMA(5,0,1) which shows us that it did not apply any additional differentiation.
+Looking at the accuracy metrics we can see that the RMSE goes from 499.89 to 417.56. So we have an improvement. However, it is important to note here that we did not apply the inverse transformation after forecasting; we simply applied a differentiation on our validation set in order to obtain the accuracy (we also loose 7 days on the graph for the observed data). So, on the graph we have something very linear for the predictions. Normally, an inverse transoformation must be applied to obtain the final predictions.
 
-The ACF seems better but the Ljung-Box test still tells us that the residues of our model do not come from a white noise.
+#### Trial B
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+For this next test, we will take our initial time series, apply a differentiation with a lag of 30 and then make an arima.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 #auto.arima avec transformation préalable
 diff_train_set <- diff(train_set, lag = 30)
 plot(diff_train_set)
-ggAcf(diff_train_set, lag.max = 90)
+ggAcf(diff_train_set, lag.max = 90) +
+   theme_bw() +
+  labs(title = "Correlogram",
+       subtitle = "Differenciated time series") +
+         theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+```
 
+This time, on the ACF, it is the weekly seasonality that appears. Which isn't really a surprise. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 model_autoC <- diff_train_set %>% auto.arima(approximation = FALSE, stepwise = FALSE)
 checkresiduals(model_autoC)
+```
 
+The auto.arima function gives us this time an ARIMA(5,0,0). Again, no further differentiation was applied. As in the previous tests, the Ljung-Box rejects H0 with a p-value of less than 0.05. This is also visible on the ACF. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 #forecast
 fcC <- model_autoC %>% forecast(h=28)
 fcC <- data.frame(fcC)
 fcC <- ts(fcC)
 
 diff_validation_set <- diff(val_set, lag = 7)
+
 accC <- accuracy(fcC, diff_validation_set)
-View(accC)
+kableExtra::kable(accC,
+    caption = "<center><strong>28 days forcecast accuracy metrics</strong></center>",
+    escape = FALSE,
+    format = "html")%>%
+    kableExtra::kable_styling(
+        bootstrap_options = c("striped","bordered"),
+        full_width = F)
 
 #plot
-autoplot(val_set) +
+autoplot(diff_validation_set) +
   autolayer(fcC, lty=2) +
    theme_bw() +
      labs(title = "Observations & Predictions",
@@ -231,18 +298,13 @@ autoplot(val_set) +
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-During this second test, we first apply a differentiation with a 30-day lag.
-
-the ACF of our transformed data seems still not satisfactory.
-
-Once again, the residuals of our model follow a normal law centered around zero but these always contain information not taken into account by the model.
-
-Same conclusion when looking at the result of the Ljung-Box test.
-
+The RMSE is worse than in our previous test with a value of 437.19. 
 
 ### Auto.arima with transformation and regressor
 
-```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+We could see on different previous graphs that the store was closing at Christmas. Applying a 365 day differentiation would impact every point of our time series when we are just interested in that particular day. One solution is to use a regressor in our auto.arima function to take this information into account. This is what we will do in this section. We are also going to apply a 7 day differentiation since we have found that this gives us a better result.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
 
 tdf <- t(df[,7:ncol(df)])
 
@@ -268,12 +330,12 @@ specialDays_modeling <- cbind(tdf3$IndependenceDay[1:1857],tdf3$SuperBowl[1:1857
 specialDays_forecasting <- cbind(tdf3$IndependenceDay[1858:1885],tdf3$SuperBowl[1858:1885], tdf3$Christmas[1858:1885])
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 #auto.arima avec transformation préalable
 diff_train_set <- diff(train_set, lag = 7)
-plot(diff_train_set)
-ggAcf(diff_train_set, lag.max = 90)
+```
 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 model_autoB <- diff_train_set %>% auto.arima(approximation = FALSE, stepwise = FALSE, xreg = specialDays_modeling[-(1:7),])
 #forecast
 fcB <- model_autoB %>% forecast(h=28, xreg = specialDays_forecasting) 
@@ -281,11 +343,18 @@ fcB <- data.frame(fcB)
 fcB <- ts(fcB)
 
 diff_validation_set <- diff(val_set, lag = 7)
+
 accB <- accuracy(fcB, diff_validation_set)
-View(accB)
+kableExtra::kable(accB,
+    caption = "<center><strong>28 days forcecast accuracy metrics</strong></center>",
+    escape = FALSE,
+    format = "html")%>%
+    kableExtra::kable_styling(
+        bootstrap_options = c("striped","bordered"),
+        full_width = F)
 
 #plot
-autoplot(val_set) +
+autoplot(diff_validation_set) +
   autolayer(fcB, lty=2) +
    theme_bw() +
      labs(title = "Observations & Predictions",
@@ -294,4 +363,5 @@ autoplot(val_set) +
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
+By adding the regressor the model is only slightly improved compared to our previous best prediction. Indeed, we obtain an RMSE of 417.31 instead of 417.56.
 
