@@ -15,6 +15,7 @@ library(lubridate)
 library(knitr)
 library(ggplot2)
 library(kableExtra)
+library(scales)
 ```
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
@@ -97,11 +98,13 @@ u %>%
   ggplot() +
   geom_col( aes(state_id, pour_sales_state, fill = state_id)) +
   theme_bw() +
-  labs(x = "State ID", y = "Proportion of sales", size = 10) +
+  labs(x = "State ID", y = "Sales", size = 10) +
   labs(title = "Proportion of sales by state") +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10)) +
   theme(legend.position = "None") +
-  scale_fill_manual(values = c("#69b3a2","steelblue3", "#69b3a2"))
+  scale_fill_manual(values = c("#69b3a2","steelblue3", "#69b3a2")) +
+  scale_y_continuous(labels = percent_format(accuracy=1), name = "Proportion") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 remove(u)
 ```
@@ -125,7 +128,8 @@ i %>%
   labs(title = "Total sales by store") +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10)) +
   theme(legend.position = "None") +
-  scale_fill_manual(values =c("#69b3a2", "#69b3a2", "#69b3a2",  "#69b3a2","steelblue3", "#69b3a2", "#69b3a2", "#69b3a2", "#69b3a2", "#69b3a2"))
+  scale_fill_manual(values =c("#69b3a2", "#69b3a2", "#69b3a2",  "#69b3a2","steelblue3", "#69b3a2", "#69b3a2", "#69b3a2", "#69b3a2", "#69b3a2")) +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 #remove(i)#69b3a2", "#404080"
 ```
@@ -151,10 +155,12 @@ w %>%
   ggplot() +
   geom_col( aes(cat_id, sales_cat), fill = "steelblue3") +
   theme_bw() +
-  labs(x = "category ID", y = "Proportion of sales", size = 10) +
+  labs(x = "category ID", y = "Sales", size = 10) +
   labs(title = "Proportion of sales by category") +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10)) +
-  theme(legend.position = "None")
+  theme(legend.position = "None") +
+  scale_y_continuous(labels = percent_format(accuracy=1), name = "Proportion") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 remove(w)
 ```
@@ -177,10 +183,11 @@ q %>%
   ggplot() +
   geom_col( aes(dept_id, sales_dept), fill = "steelblue3") +
   theme_bw() +
-  labs(x = "departement ID", y = "Proportion of sales", size = 10) +
+  labs(x = "departement ID", y = "Sales", size = 10) +
   labs(title = "Proportion of sales by departement") +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10)) +
-  theme(legend.position = "None")
+  theme(legend.position = "None") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 remove(q)
 ```
@@ -208,7 +215,8 @@ ggplot(e) +
   theme_bw() +
   labs(x = "Weekday", y = "Median sales", size = 10)+labs(title = "Median sales per weekday") +
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10)) +
-  theme(legend.position = "None")
+  theme(legend.position = "None") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 remove(e)
 ```
@@ -230,7 +238,8 @@ ggplot(r)+
   theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10)) +
   theme(legend.position = "None")+
   scale_x_discrete(labels = c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")) +
-  theme(axis.text.x = element_text(size = 8, angle = 10))
+  theme(axis.text.x = element_text(size = 8, angle = 10)) +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
   
 remove(r)
 ```
@@ -255,7 +264,10 @@ t.ts <- ts(t, start = c(2011, 1), end = c(2016,6), frequency = 12)
 t.ts <- t.ts[,c(3)]
 
 ggseasonplot(t.ts) + 
-  labs(title = "seasonplot of sales")
+  labs(title = "seasonplot of sales", y = "Sales") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  theme_bw() 
+
 
 remove(t)
 ```
@@ -278,8 +290,12 @@ prices_TX1 %>%
   mutate(avg_price = mean(sell_price)) %>%
   ggplot() +
   geom_line(aes(wm_yr_wk, avg_price, color = category)) +
-  labs(x = "weeks", y = "average prices", size = 10)+
-  labs(title = "Evolution of prices over time by category")
+    theme_bw() +
+  labs(x = "Years", y = "average prices", size = 10)+
+  labs(title = "Evolution of prices over time by category") +
+  scale_x_continuous(labels = seq(2011,2016,1)) +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+  
 ```
 
 this plot is to see if there seems to be a trend in the applied prices. Average prices are lower at the beginning, but this is probably because not all products were sold by 2011. 
@@ -295,8 +311,10 @@ prices %>%
   ggplot(aes(wm_yr_wk, PRICE_FOODS_3_794)) +
   geom_line() +
   theme_bw() +
-  labs(x = "weeks", y = "price", size = 10) +
-  labs(title = "FOODS_3_794")
+  labs(x = "Years", y = "price", size = 10) +
+  labs(title = "FOODS_3_794") +
+  scale_x_continuous(labels = seq(2011,2016,1)) +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 ```
 
 We have selected product "FOODS_3_794 in particular to show the possible price variations over time. The three downward peaks are probably discounts or an error in the data.
@@ -317,7 +335,8 @@ events %>%
   geom_col(aes(event_type_1, n), fill = "steelblue3") +
   theme_bw() +
   scale_y_discrete(limits = c(10,20,30,40,50)) +
-  labs(x = "Event type", y = "Number of events", title = "Proportion of events by type ?")
+  labs(x = "Event type", y = "Number of events", title = "Proportion of events by type ?") +
+       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 ```
 
