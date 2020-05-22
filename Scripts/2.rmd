@@ -120,7 +120,7 @@ training_set <- hts(training_set, bnames = hts_ids, characters = c(3,1,6))
 validation_set <- hts(validation_set, bnames = hts_ids, characters = c(3,1,6))
 ```
 
-## Time series
+### Time series graphics
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(level = 0) %>% 

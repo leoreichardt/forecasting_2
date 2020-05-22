@@ -77,10 +77,11 @@ tdf4 <- merge(tdf3, prices_full, by = "wm_yr_wk")
 
 ```
 
+# Exploratory Data Analysis
 
-## Organisation of stores
 
-#### Sales of each state
+
+### General repartition of sales
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 df$Sales_per_product <- df %>% select(7:1919) %>% mutate() %>% rowSums()
@@ -108,7 +109,7 @@ remove(u)
 
 We can see that CA represents more than 40% of sales, while WI and TX are about the same.
 
-#### Sales by store
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
@@ -134,7 +135,7 @@ We can see that the two stores with the most sales are in CA, which is not surpr
 
 Now, let's focus on our store, TX_1
 
-#### Sales by category
+### Repartition of sales for TX1
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 TXdf$Sales_per_product <- TXdf %>% select(7:1919) %>% mutate() %>% rowSums()
@@ -162,7 +163,7 @@ remove(w)
 We can see that food represents the vast majority of sales with more than 60%, followed by household. Hobbies represent less than 10% of sales.
 
 
-#### Sales by department
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 q <- TXdf%>%
@@ -187,9 +188,9 @@ remove(q)
 
 Not surprisingly, this is one of the food departments that accounts for the vast majority of sales. Household_1 accounts for most of the sales of the household department.
 
-## Sales
 
-#### Sales by day of the week
+
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 tdf3$Sales_per_day <- tdf3 %>% select(15:3063) %>% mutate() %>% rowSums()
@@ -215,7 +216,7 @@ remove(e)
 
 We can see that the store make more sales during the weekend.
 
-#### Sales by month
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 r <- tdf3%>%
@@ -238,7 +239,7 @@ remove(r)
 It seems that sales are slightly higher between February and June and lower between November and January.
 
 
-#### Are the sales similar if you compare the years ?
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -264,9 +265,9 @@ remove(t)
 All years seem similar, with slightly lower sales at the beginning and end of the year and higher sales between May and September. Sales are exceptionally high in July 2015.
 Note that not all products were on sale from January 2011, which is probably why 2011 does not follow the seasonality before August. 
 
-## Prices
 
-#### Price evolution in categories
+### Evolution of prices
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 prices_TX1 <- prices_TX1 %>% dplyr::filter(prices_TX1$store_id == "TX_1")
@@ -286,7 +287,7 @@ this plot is to see if there seems to be a trend in the applied prices. Average 
 
 In this case there doesn't seem to be any particular trend.
 
-#### Price evolution of one product over time
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 #price evolution for one product in particular
@@ -304,9 +305,8 @@ We have selected product "FOODS_3_794 in particular to show the possible price v
 
 
 
-## Calendar
+### Events
 
-#### list of event type
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 events <- cal[!is.na(cal$event_type_1), ]   
@@ -323,7 +323,7 @@ events %>%
 
 there's a majority of national and religious events. But it would be interesting to know what events there are in particular during the 28 days that we have to predict. 
 
-#### Historical events within the 28-day prediction period
+
 
 if you look manually, the only events that take place during the 28 days to be predicted are: "NBA Finals", "Independence day", "Ramadan start" and "Father's day". In 2016, within that time frame, there was only Independence Day, which took place
 
