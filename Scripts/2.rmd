@@ -17,11 +17,14 @@ library(knitr)
 library(ggplot2)
 library(kableExtra)
 library(timeSeries)
+
 ```
 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Load data
+
+
 df <- read.csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
 df <- data.frame(df, stringsAsFactors = FALSE)
 df <- within(df, 
@@ -134,7 +137,8 @@ training_set %>% aggts(level = 0) %>%
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-When you look at sales by day, there seems to be an annual seasonality, and you can see the Christmas day when the store is closed each year. Sales are a bit lower at the beginning.
+When you look at sales by day, there seems to be an annual seasonality and a growing trend.
+Moreover, One day a year the shop is closed for Christmas. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=1) %>%
@@ -149,82 +153,74 @@ training_set %>% aggts(levels=1) %>%
   theme(strip.background = element_rect(fill="#69b3a2"))
 ```
 
-If we decompose the time series by category, the seasonality we observed seems to come only from FOOD. We always see sales at zero on Christmas Day. The lower sales at the beginning of the data that could be seen in the previous plot come only from HOUSEHOLD. This may be due to the fact that not all products were sold at the beginning of the data.
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-training_set %>% aggts(levels=2) %>%
-  autoplot(facet=TRUE) +
-   theme_bw() +
-  labs(title = "Departments",
-       subtitle = "Daily data",
-       x = "Time",
-       y = "Sales (#)") +
-    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
-        plot.subtitle = element_text(hjust = 0.5)) +
-  theme(strip.background = element_rect(fill="#404080")) +
-  theme(strip.text = element_text(colour = 'white'))
-```
+If we decompose the time series by category, the seasonality we observed seems to come from FOOD while the trend is more towards hobbies and household.  
+The beginning of the household time series is marked by a slope much higher than the rest. This is probably due to the introduction of new products which creates a bias in the interpretation of the trend.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 #we have high frequency data (daily)
 #mstl: Decompose a time series into seasonal, trend and remainder components.
 
-ts_all %>% aggts(levels=0) %>% 
+ts_365 <- ts(tdf3[1:1885,-(1:14)], frequency = 365)
+hts_365 <- hts(ts_365, bnames = hts_ids, characters = c(3,1,6))
+
+hts_365 %>% aggts(levels=0) %>%
   mstl() %>% 
   autoplot() +
   theme_bw() +
   labs(title = "Decomposition",
-       subtitle = "Level 0") +
+       subtitle = "Store TX1") +
     theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5)) 
 ```
+The trend is clear, however, the seasonality is not yet fully decomposed. As we have daily data, we probably have several seasonalities. In what follows, we try to decompose it manually
 
-As we have daily data, we may have several seasonalities. We use the mstl function which allows us to make a decomposition between different seasonalities, the trend and the residuals. Here we see a weekly seasonality, but it seems that there is still a seasonality in the trend.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=0) %>% 
   ggAcf(lag.max = 1095) +
   theme_bw() +
   labs(title = "Correlogram",
-       subtitle = "Level 0") +
+       subtitle = "Annual seasonality") +
       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5)) 
 
 #The slow decrease in the ACF as the lags increase is due to the trend, while the “scalloped” shape is due the seasonality.
 ```
+
+This correlogram shows 3 years. There are 3 waves with a peak approximately every 320 days which suggests a possible annual seasonality.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=0) %>% 
   ggAcf(lag.max = 180) +
   theme_bw() +
   labs(title = "Correlogram",
-       subtitle = "Level 0") +
+       subtitle = "Monthly seasonality") +
       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5)) 
 
 #The slow decrease in the ACF as the lags increase is due to the trend, while the “scalloped” shape is due the seasonality.
 ```
 
-On the ACF with a lag of 180, a monthly seasonality can be identified. 
+This correlogram shows six months. There are 6 waves that can be clearly distinguished when ACF are below 0. This indicates a monthly seasonality.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=0) %>% 
   ggAcf(lag.max = 30) +
   theme_bw() +
   labs(title = "Correlogram",
-       subtitle = "Level 0") +
+       subtitle = "Weekly seasonality") +
       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5)) 
 ```
 
-When the lags are reduced, the 7-day seasonality of the data is clearly identified. 
+This correlogram shows 30 days. There is a peak every 7 days showing a weekly seasonality. 
 
 ## Conclusion of EDA
 
-This EDA helps us to familiarize ourselves with the general data and more specifically with our TX_1 store. As far as sales are concerned, there is no particular trend, but slightly lower sales at the beginning of the observed period, probably due to the fact that not all products are on sale since the beginning.  There is a weekly and a monthly seasonality. The problem with a monthly frequency is its lack of consistency, as not all months have the same number of days and using a frequency of 30 or 31 would create a bias. Thus, we will not take the monthly seasonnality into account in our models. 
+This EDA helps us to familiarize ourselves with the general data and more specifically with our TX_1 store. As far as sales are concerned, there's a growing trend. It is difficult to analyse it because the number of products in the stores is not constant.  
+The weekly and the monthly seasonality are clear. The problem with a monthly seasonality is its lack of consistency, as not all months have the same number of days. Using a frequency of 30 or 31 would create a bias. Thus, we will not take it into account in our models. 
 
-We see that the store is closed every year at Christmas, which is an important element that we will have to take into account in our models afterwards. It is not a seasonality but a repetitive event once a year. 
-
-Finally, the only event that has taken place during the 28 days that we have to predict is Independence Day, which takes place on the 4th of July each year. We will also have to take into account the influence of this event in our models. 
+Concerning the annual seasonality, it seems implausible that every day of the year is correlated with the day of the previous year.   
+However, as shown by the closing of stores at Christmas, we believe most of the correlation between years comes from special events that are repeated.  
+Therefore, we will include in our models Christmas who has a big impact on sales (in fact, the stores are closed) and the only event that has taken place during the 28 days that we predict which is Independence Day.
 
