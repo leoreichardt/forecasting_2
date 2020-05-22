@@ -1,0 +1,21 @@
+---
+title: "Introduction"
+output: html_document
+---
+
+# Introduction
+
+## Contexte and objectives
+The objective of this work is, on the basis of a competition organised on Github, the M5 forecasting competition, to make the most accurate possible predictions of sales over 28 days in a Walmart store. 
+By analyzing the sales over a period of time from 2011 to 2016, the objective is to find a model, which will make the most accurate predictions possible, based on the knowledge we acquired in the forecasting course 1. 
+To achieve this goal, we will first familiarize ourselves with the data in the exploratory data analysis part. We will try to understand the different patterns in the data, identify possible trends and seasonalities. 
+As the data is hierarchical (we focus on the TX1 store, which is divided into 3 departments, which are further divided into 2 or 3 categories) we will test several approaches to see what gives us the best results. 
+firstly, we will make a hierarchical decomposition of these data (going at most to the 2nd level, at category level) and taking into account the other stores in the country by using different methods (Bottom-up, Top-down, Middle-out, etc) as well as different methods (arima, ETS). 
+secondly, we will try a second approach by analyzing only the store we are interested in, without taking into account the hierarchy. 
+
+Once all these possibilities have been tested, we will select the best model according to certain criteria explained below, and we will make the predictions for the 28 days. 
+
+
+## Data Division
+To evaluate our different models, we have divided our data into 3 parts. Historical data is provided from 2011-01-29 to 2016-06-19, but a part of these days contained only NAs. 
+So we took all the days without NA, from which we removed 28 days to do a validation set and 28 days for a test set. The figure below summarizes our splitting.  
