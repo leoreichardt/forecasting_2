@@ -2,12 +2,15 @@
 title: "Report"
 author: "Jeremy Bayer, Leo Reichard, Raffaello Raffin"
 date: "5/20/2020"
-output: 
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
   html_document:
     css: style.css
-    toc: true
+    number_sections: yes
+    toc: yes
     toc_depth: 3
-    number_sections: true
 ---
 
 ```{r include=FALSE}
@@ -17,7 +20,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r child = '0. introduction.rmd'}
+```{r child = '0.rmd'}
 ```
 
 ```{r child = '1.rmd'}
@@ -35,3 +38,14 @@ knitr::opts_chunk$set(
 ```{r child = '5.rmd'}
 ```
 
+```{r child = '6.rmd'}
+```
+
+```{r child = 'Appendix.rmd'}
+```
+
+```{r child = 'Appendix ARIMA.rmd'}
+```
+
+```{r child = 'References.rmd'}
+```

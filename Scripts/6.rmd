@@ -1,0 +1,26 @@
+---
+title: "Conclusion"
+author: "Raffaello Raffin"
+date: "5/24/2020"
+output: html_document
+---
+
+# Discussion and Conclusion
+
+This project was for us the opportunity to apply and better understand the concepts we learned in Forecasting 1. We quickly realized that we had to be flexible and that in reality, forecasting is not black or white but that there is a multitude of ways to approach this task.
+
+So from the start, we decided to explore different directions. First, with the Exploratory Data Analysis to immerse ourselves into the data and get as much information as possible, then in modelling with the choice of methods and models.
+
+One of the angles that we decided to take was to use the data in their hierarchical form. We have learned to use these complex objects and have expanded our knowledge in order to apply the different approaches available. We have also chosen to apply a regressor to take certain events into account; the Christmas closing and Independence Day, which is the only event to take place within the 28 days forecast.
+
+One of the difficulties with this approach lay in the choice of levels to be taken into account. Choice which was among others limited by the power of our machines. This is why we have tried different alternatives. We also faced some barriers when manipulating the data in its hierarchical form and adapting the functions we already knew.
+
+The second major approach that we have adopted is that of applying an ARIMA only on the level that interests us, here TX1. We have done several tests; some tests leaving the auto.arima function to take care of everything and others where we differentiated "manually" before applying the model. In this part, we also had difficulties applying the reverse transformation after having forecast. This situation made it difficult to compare and interpret our results. Because of this, we cannot give a "winner" among the models we have tried.
+
+These different tests also allowed us to understand the impact of the choice of the frequency of the time series and the behaviour of a time series with several seasons.
+
+Even if we were able to go in many directions with this project, there are still things that we would have liked to try and discover:
+
+Integrate more events into our modelling, use the price variable, apply other models (ex: ETS), go further in the transformations (log, Box-cox, etc.) or even go lower in the levels (at the level of each product) with hierarchical data in order to capture more information.
+
+In conclusion, even if all our attempts have not been successful, we draw great lessons from it and have considerably expanded our knowledge. We are convinced that learning to identify the source of a problem and looking for suitable solutions is equally important.

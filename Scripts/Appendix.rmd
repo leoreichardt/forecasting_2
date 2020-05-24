@@ -1,0 +1,274 @@
+---
+title: "appendix"
+output: html_document
+---
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+library(readr)
+library(tidyverse)
+library(ggseas)
+library(hts)
+library(dplyr)
+library(stringr)
+library(purrr)
+library(tidyr)
+library(here)
+library(stringi) 
+library(kableExtra)
+```
+
+# Appendix
+
+We are going to exhibit a non-exhaustive list of our tests, choosing the most relevant ones that show our reasoning and the way to the best model. Some did not work and we will explain why and what could have been done to improve them.  
+
+In order to find the best model of the hierarchical modeling part, we tried other methods that were more or less conclusive.  
+
+First, we were not sure that the code and method used was the right one and to better understand how the *hts* and *forecast* functions work, we decided to conduct an analysis only on HOBBIES_2 which is the department with the fewest items in the store. 
+
+We only managed to make the following prediction: 
+A model using the bottom-up arima method. 
+
+**Top level : Hobbies_2**
+**Bottom level : all items**
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Load data
+
+df <- read_csv("~/Documents/GitHub/forecasting_2/Data/sales_train_validation.csv")
+df <- data.frame(df, stringsAsFactors = FALSE)
+df <- within(df, 
+             item_id <- as.factor(item_id),           
+             dept_id <- as.factor(dept_id),
+             cat_id <- as.factor(cat_id))
+
+cal <- read.csv("~/Documents/GitHub/forecasting_2/Data/calendar.csv", na.strings = "")
+prices <- read_csv("~/Documents/GitHub/forecasting_2/Data/sell_prices.csv")
+prices <- data.frame(prices, stringsAsFactors = FALSE)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+tdf <- t(df[,7:ncol(df)])
+
+tdf2 <- rbind(tdf, 
+              matrix(NA, nrow = nrow(cal) - nrow(tdf),
+                     ncol = ncol(tdf)))
+tdf3 <- data.frame(cbind(cal, tdf2))
+
+colnames(tdf3) <- c(colnames(tdf3)[1:14], df$id)
+
+
+tdf3$Christmas <- ifelse(tdf3$event_name_1 == "Christmas", 1,0)
+tdf3$Christmas[is.na(tdf3$Christmas)] = 0
+
+tdf3$IndependenceDay <- ifelse(tdf3$event_name_1 == "IndependenceDay", 1,0)
+tdf3$IndependenceDay[is.na(tdf3$IndependenceDay)] = 0
+
+
+
+specialDays_modeling <- cbind(tdf3$IndependenceDay[1:1857], tdf3$Christmas[1:1857])
+specialDays_forecasting <- cbind(tdf3$IndependenceDay[1858:1885], tdf3$Christmas[1858:1885])
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# create the data frame
+df_HOBBIES_2 <- subset(df, store_id == "TX_1" & dept_id == "HOBBIES_2")
+
+tdf_HOBBIES_2 <- t(df_HOBBIES_2[,7:ncol(df)])
+
+tdf2_HOBBIES_2 <- rbind(tdf_HOBBIES_2, 
+              matrix(NA, nrow = nrow(cal) - nrow(tdf_HOBBIES_2),
+                     ncol = ncol(tdf_HOBBIES_2)))
+tdf3_HOBBIES_2 <- data.frame(cbind(cal, tdf2_HOBBIES_2))
+
+colnames(tdf3_HOBBIES_2) <- c(colnames(tdf3_HOBBIES_2)[1:14], df_HOBBIES_2$id)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# create times series and divide it into training / validation set
+TS_HOBBIES_2 <- ts(tdf3_HOBBIES_2[,-(1:14)], frequency = 7)
+TS_HOBBIES_2_tr <- TS_HOBBIES_2[1:1857,]
+TS_HOBBIES_2_val <- TS_HOBBIES_2[1858:1885,]
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# create bnames 
+splitted <- do.call(rbind, stri_split_fixed(df_HOBBIES_2$id, '_'))[,1:5]
+splitted[,1] <- substr(splitted[,1], 1, 3)
+hts_ids <- apply(splitted, 1, paste0, collapse = '')
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# create HTS with the 2 hierarchical levels : dept_id / each articles
+HTS_HOBBIES_2_tr <- hts(TS_HOBBIES_2_tr, bnames = hts_ids, characters = c(4,6))
+HTS_HOBBIES_2_val <- hts(TS_HOBBIES_2_val, bnames = hts_ids, characters = c(4,6))
+```
+  
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# forecast using arima bu approach
+FORECAST_HOBBIES_2 <- forecast(HTS_HOBBIES_2_tr, h = 28, method = "bu", fmethod = "arima")
+ACC_HOBBIES_2 <- accuracy.gts(FORECAST_HOBBIES_2, HTS_HOBBIES_2_val)
+ACC_HOBBIES_2 <- round(ACC_HOBBIES_2, digits = 3)
+
+
+kableExtra::kable(ACC_HOBBIES_2[, c(2,12,18)], col.names = c("HOBBIES_2", "HOB2010TX1", "HOB2016TX1"),
+    caption = "<center><strong> 28 days forcecast : metrics of an ARIMA model</strong></center>",
+    escape = FALSE,
+    format = "html") %>%
+    kableExtra::kable_styling(
+        bootstrap_options = c("striped","bordered"),
+        full_width = F) %>%
+  add_header_above(c(" ", "Bottom-up" = 3)) %>%
+  column_spec(1, bold = T) %>%
+  column_spec(2:4, width = "8em") %>%
+    row_spec(6, background = "lightyellow") 
+```
+
+The model is not good, the MASE of HOBBIES_2 is higher than 1, however, using an arima for some articles could be a good option as we can see with the article: HOB2016TX1 but for others, the model doesn't work at all. Moreover, the problem remained the same: we won't be able to compute more than 3,000 different models for each item sold at Walmart.
+If we had more time we could have taken each item separately to find the best possible model. We probably would have chosen an arima for HOB2016TX1 while we would have looked for another model for HOB2010TX1 before aggregating them all.
+
+
+Then we asked ourselfes if by limiting the top level to TX_1, we were losing information that could be taken into account.  
+Thus, we have re-tried the models that yelded our best results in the modeling part.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# create the data frames
+
+tdf <- t(df[,7:ncol(df)])
+
+tdf2 <- rbind(tdf, 
+              matrix(NA, nrow = nrow(cal) - nrow(tdf),
+                     ncol = ncol(tdf)))
+tdf3 <- data.frame(cbind(cal, tdf2))
+
+colnames(tdf3) <- c(colnames(tdf3)[1:14], df$id)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# create hts objects
+TS_ALL <- ts(tdf3[,-(1:14)], frequency = 7)
+TS_tr <- TS_ALL[1:1857,]   ## on a 1913 jours avec data --> enlève 2x 28 (test/validation set)
+TS_val <- TS_ALL[1858:1885,]  ## on prend les premiers 28 jours qui serviront de test
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# which series are nested in another.
+splitted <- do.call(rbind, stri_split_fixed(df$id, '_'))[,1:5]
+splitted[,1] <- substr(splitted[,1], 1, 3)
+# Arrange the order to have the State in first position
+splitted <- splitted[, c(4,5,1,2,3)]
+
+hts_ids <- apply(splitted, 1, paste0, collapse = '')
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# create hts object
+HTS_tr <- hts(TS_tr, bnames = hts_ids, characters = c(2,1,3,1,3))
+HTS_val <- hts(TS_val, bnames = hts_ids, characters = c(2,1,3,1,3))
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# remove level with single item
+
+lvl_0_to_4_tr <- HTS_tr %>% aggts(levels=0:4) # aggregate the items
+lvl_0_to_4_val <- HTS_val %>% aggts(levels=0:4)
+
+hts_ids_lvl_0_to_4 <- str_sub(hts_ids, end = 7) %>% unique() # get the name without articles
+
+# This gives the hts with top level = state, lower level = HOB1 (category)
+HTS_tr_lvl_0_to_4 <- hts(lvl_0_to_4_tr[, -(1:44)], bnames = hts_ids_lvl_0_to_4, characters = c(2,1,3,1))
+HTS_te_lvl_0_to_4 <- hts(lvl_0_to_4_val[,-(1:44)], bnames = hts_ids_lvl_0_to_4, characters = c(2,1,3,1))
+```
+**Top level : all stores**  
+**Bottom level : dept_id**
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# bu
+FORECAST_ALL_bu_arima <- forecast(HTS_tr_lvl_0_to_4, h = 28, method = "bu", fmethod = "arima", xreg = specialDays_modeling, newxreg = specialDays_forecasting)
+ACC_ALL_bu_arima <- accuracy.gts(FORECAST_ALL_bu_arima, HTS_te_lvl_0_to_4)   
+
+FORECAST_ALL_bu_ets <- forecast(HTS_tr_lvl_0_to_4, h = 28, method = "bu", fmethod = "ets")
+ACC_ALL_bu_ets <- accuracy.gts(FORECAST_ALL_bu_ets, HTS_te_lvl_0_to_4)  
+#------------------------
+
+# tdfp
+FORECAST_ALL_tdfp_arima <- forecast(HTS_tr_lvl_0_to_4, h = 28, method = "tdfp", fmethod = "arima", xreg = specialDays_modeling, newxreg = specialDays_forecasting)
+ACC_ALL_tdfp_arima <- accuracy.gts(FORECAST_ALL_tdfp_arima, HTS_te_lvl_0_to_4)   
+
+FORECAST_ALL_tdfp_ets <- forecast(HTS_tr_lvl_0_to_4, h = 28, method = "tdfp", fmethod = "ets")
+ACC_ALL_tdfp_ets <- accuracy.gts(FORECAST_ALL_tdfp_ets, HTS_te_lvl_0_to_4)  
+#------------------------
+#comb
+FORECAST_ALL_comb_arima <- forecast(HTS_tr_lvl_0_to_4, h =28, method = "comb", weights = "mint", covariance = "shr" )
+ACC_ALL_mo_arima <- accuracy.gts(FORECAST_ALL_comb_arima, HTS_te_lvl_0_to_4)   
+
+
+ACC2 <- data.frame(ACC_ALL_bu_arima, ACC_ALL_bu_ets, ACC_ALL_tdfp_arima, ACC_ALL_tdfp_ets, ACC_ALL_mo_arima)
+ACC2 <- round(ACC2, digits = 3)
+
+kableExtra::kable(ACC2[, c(9,123,237,351,465)],  col.names = c("ARIMA", "ETS", "ARIMA", "ETS", "mint - shr"),
+    caption = "<center><strong>28 days forcecast accuracy: metrics of different models</strong></center>",
+    escape = FALSE,
+    format = "html")%>%
+    kableExtra::kable_styling(
+        bootstrap_options = c("striped","bordered"),
+        full_width = F) %>%
+  add_header_above(c(" ", "Bottom-up" = 2, "Top-down" = 2, "Comb" = 1)) %>%
+  column_spec(1, bold = T) %>%
+  column_spec(2:6, width = "8em") %>%
+row_spec(6, background = "lightyellow")
+
+
+```
+
+Unsurprisingly, the bottom-up method gives the same results as before since it starts from the bottom and we select the results for TX_1. Adding levels above doesn't change anything.  
+On the other hand, we would have hoped to find better results for the top-down method since it includes more data.  
+
+Then we realized we had omitted an option that seemed to make no sense until then: the middle out approach.
+Indeed, combining a bottom-up method going from the departments to TX_1 stores and a top-down method going from all stores in the US to TX_1 stores seemed promising.  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# mo
+FORECAST_ALL_mo_arima <- forecast(HTS_tr_lvl_0_to_4, h =28, method = "mo", level = 2, fmethod = "arima")
+ACC_ALL_mo_arima <- accuracy.gts(FORECAST_ALL_mo_arima, HTS_te_lvl_0_to_4)  
+
+FORECAST_ALL_mo_ets <- forecast(HTS_tr_lvl_0_to_4, h =28, method = "mo", level = 2, fmethod = "ets" )
+ACC_ALL_mo_ets <- accuracy.gts(FORECAST_ALL_mo_ets, HTS_te_lvl_0_to_4)  
+
+
+ACC_ALL <- data.frame(ACC_ALL_mo_arima, ACC_ALL_mo_ets)
+ACC_ALL <- round(ACC_ALL, digits = 3)
+
+### MAUVAISE COLONES
+kableExtra::kable(ACC_ALL[, c(9,123)], col.names = c("ARIMA", "ETS"), 
+    caption = "<center><strong>28 days forcecast accuracy: metrics of the models</strong></center>",
+    escape = FALSE,
+    format = "html") %>%
+    kableExtra::kable_styling(
+        bootstrap_options = c("striped","bordered"),
+        full_width = F) %>%
+  add_header_above(c(" ", "Middle-out" = 2)) %>%
+  column_spec(1, bold = T) %>%
+  column_spec(2:3, width = "8em") %>%
+row_spec(6, background = "lightyellow")
+
+```
+
+Unfortunately, the model did not give better results. 
+
+
+Final remark on hierarchical method:   
+
+
+During the proofreading we realized that the way we removed the bottom level gave false results.  
+This is what gave us wrong results: we started by creating a time series with the whole data.  
+`TS <- ts(tdf3[,-(1:14)], frequency = 7)`  
+Then we put it in the form of a hts.  
+`HTS <- hts(TS, bnames = hts_ids, characters = c(3,1,6))`  
+We used the aggts function to aggregate the desired levels (usually all but the bottom level). This made a time series which could not be used for forecasting hierarchical data (the object must be a hts).  
+`TS_2 <- HTS %>% aggts(levels=0:2)`  
+So we made again a hts with *TS_2* keeping only the bottom level of TS_2 (FOO1...HOU1). We modified *hts_ids* in order to not include the name of the level removed at the previous step (*hts_ids_2* is a string that looks like : FOO1...HOU1). 
+`HTS_2 <- hts(TS_2, bnames = hts_ids_2, characters = c(3,1))`  
+
+This method yelds the same value for the level 0 (the total). However, what we didn't realize is that it modifies the values of the lower levels.   
+Thus, the predictions seemed correct even though they were based on the aggregation of models that have wrong data.  
+Since both the training and the test validation were modified by the same method, we do not know how much this affected the models. As we did not find a solution and did not have the time to find another strategy, we still preferred to include these results in the final report.  
+
+
+
