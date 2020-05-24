@@ -121,11 +121,11 @@ kableExtra::kable(ACC_HOBBIES_2[, c(2,12,18)], col.names = c("HOBBIES_2", "HOB20
     row_spec(6, background = "lightyellow") 
 ```
 
-The model is not good, the MASE of HOBBIES_2 is higher than 1, however, using an arima for some articles could be a good option as we can see with the article: HOB2016TX1 but for others, the model doesn't work at all. Moreover, the problem remained the same: we won't be able to compute more than 3,000 different models for each item sold at Walmart.
+The model is not good; the MASE of HOBBIES_2 is higher than 1, however, using an arima for some articles could be a good option as we can see with the article "HOB2016TX1". For others, the model doesn't work at all. Moreover, the problem remained the same: we were not be able to compute more than 3,000 different models for each item sold at Walmart.
 If we had more time we could have taken each item separately to find the best possible model. We probably would have chosen an arima for HOB2016TX1 while we would have looked for another model for HOB2010TX1 before aggregating them all.
 
 
-Then we asked ourselfes if by limiting the top level to TX_1, we were losing information that could be taken into account.  
+Then we asked ourselves if by limiting the top level to TX_1, we were losing information that could be taken into account.  
 Thus, we have re-tried the models that yelded our best results in the modeling part.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
@@ -217,8 +217,8 @@ row_spec(6, background = "lightyellow")
 
 ```
 
-Unsurprisingly, the bottom-up method gives the same results as before since it starts from the bottom and we select the results for TX_1. Adding levels above doesn't change anything.  
-On the other hand, we would have hoped to find better results for the top-down method since it includes more data.  
+Unsurprisingly, the bottom-up method gives the same results as before since it starts from the bottom and selects the results for TX_1. Adding levels above doesn't change anything.  
+On the other hand, we hoped to find better results for the top-down method since it includes more data.  
 
 Then we realized we had omitted an option that seemed to make no sense until then: the middle out approach.
 Indeed, combining a bottom-up method going from the departments to TX_1 stores and a top-down method going from all stores in the US to TX_1 stores seemed promising.  
@@ -257,18 +257,18 @@ Final remark on hierarchical method:
 
 
 During the proofreading we realized that the way we removed the bottom level gave false results.  
-This is what gave us wrong results: we started by creating a time series with the whole data.  
+This is what we did: we started by creating a time series with the whole data.  
 `TS <- ts(tdf3[,-(1:14)], frequency = 7)`  
 Then we put it in the form of a hts.  
 `HTS <- hts(TS, bnames = hts_ids, characters = c(3,1,6))`  
-We used the aggts function to aggregate the desired levels (usually all but the bottom level). This made a time series which could not be used for forecasting hierarchical data (the object must be a hts).  
+We used the aggts function to aggregate the desired levels (usually all but the bottom level). This resulted in a time series that could not be used for forecasting hierarchical data (the object must be a hts).  
 `TS_2 <- HTS %>% aggts(levels=0:2)`  
-So we made again a hts with *TS_2* keeping only the bottom level of TS_2 (FOO1...HOU1). We modified *hts_ids* in order to not include the name of the level removed at the previous step (*hts_ids_2* is a string that looks like : FOO1...HOU1). 
+So we redid a hts with *TS_2* keeping only the bottom level of TS_2 (FOO1...HOU1). We modified *hts_ids* in order to not include the name of the level removed at the previous step (*hts_ids_2* is a string that looks like : FOO1...HOU1). 
 `HTS_2 <- hts(TS_2, bnames = hts_ids_2, characters = c(3,1))`  
 
 This method yelds the same value for the level 0 (the total). However, what we didn't realize is that it modifies the values of the lower levels.   
-Thus, the predictions seemed correct even though they were based on the aggregation of models that have wrong data.  
-Since both the training and the test validation were modified by the same method, we do not know how much this affected the models. As we did not find a solution and did not have the time to find another strategy, we still preferred to include these results in the final report.  
+Thus, the predictions seemed correct even though they were based on the aggregation of models with wrong values.  
+Since both training and validation sets were modified by the same method, we do not know how much this affected the results. As we did not find a solution, we still preferred to include these results in the final report.  
 
 
 

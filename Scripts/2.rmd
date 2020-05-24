@@ -123,7 +123,7 @@ training_set <- hts(training_set, bnames = hts_ids, characters = c(3,1,6))
 validation_set <- hts(validation_set, bnames = hts_ids, characters = c(3,1,6))
 ```
 
-## Time series anaylsis
+## Time series 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(level = 0) %>% 
@@ -137,8 +137,8 @@ training_set %>% aggts(level = 0) %>%
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-By looking at daily sales, there seems to be an annual seasonality and a growing trend.
-Moreover, the store is closed for Christmas every year. 
+By looking at daily sales, there seems to be an annual seasonality and a postive trend.
+Moreover, the store is closed on Christmas day. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=1) %>%
@@ -153,8 +153,8 @@ training_set %>% aggts(levels=1) %>%
   theme(strip.background = element_rect(fill="#69b3a2"))
 ```
 
-If we decompose the time series by category, the seasonality we observed seems to come from FOOD while the trend is more towards hobbies and household.  
-The first part of the household time series is marked by positive trend. This is probably due to the introduction of new products which creates a bias in the interpretation of the trend.
+If we decompose the time series by category, the seasonality we observe seems to come from FOOD while the trend is more towards hobbies and households.  
+The first part of the household time series is characterized by a positive trend. This is probably due to the introduction of new products which creates a bias in the interpretation of the trend.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 #we have high frequency data (daily)
@@ -172,7 +172,7 @@ hts_365 %>% aggts(levels=0) %>%
     theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5)) 
 ```
-The trend is clear, however, the seasonality is not yet fully decomposed. As we have daily data, we probably have several seasonalities. In what follows, we try to decompose it manually
+The trend is clear, however, the seasonality is not yet fully decomposed. As we have daily data, we probably have several seasonalities. In the following correlograms, we try to decompose it manually.
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
@@ -201,7 +201,7 @@ training_set %>% aggts(levels=0) %>%
 #The slow decrease in the ACF as the lags increase is due to the trend, while the “scalloped” shape is due the seasonality.
 ```
 
-This correlogram shows 180 lags. We can identify peaks every 30 days approximatly, which means that we have a monthly seasonality. 
+This correlogram shows 180 days. We can identify peaks every 30 lags approximatly, which means that we have a monthly seasonality. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 training_set %>% aggts(levels=0) %>% 
@@ -213,14 +213,14 @@ training_set %>% aggts(levels=0) %>%
         plot.subtitle = element_text(hjust = 0.5)) 
 ```
 
-This correlogram shows 30 lags. There is a peak every 7 days showing a weekly seasonality. 
+This correlogram shows 30 days. There is a peak every 7 lags showing a weekly seasonality. 
 
 ## Conclusion of EDA
 
-This EDA helps us to familiarize ourselves with the general data and more specifically with our TX_1 store. As far as sales are concerned, it seems to be a growing trend, even if it is difficult to analyse it because the number of products sold are not constant. 
+This EDA helps us to familiarize ourselves with the general data and more specifically with our TX_1 store. As far as sales are concerned, it seems to have a growing trend. It is difficult to analyse it because the number of products sold are not constant. 
 The weekly and monthly seasonality are clear. The problem with a monthly seasonality is its lack of consistency, as not all months have the same number of days. Using a frequency of 30 or 31 would create a bias. Thus, we will not take it into account in our models. 
 
 Concerning the annual seasonality, it seems implausible that every day of the year is correlated with the day of the previous year.   
-However, as shown by the closing of stores at Christmas, we believe most of the correlation between years comes from special events that are repeated.  
-Therefore, we will include in our models Christmas who has a big impact on sales (in fact, the stores are closed) and the only event that has taken place during the 28 days that we predict which is Independence Day.
+However, as shown by the closing of stores on Christmas day, we believe most of the correlation between years comes from special events that are repeated.  
+Therefore, we will include in our models Christmas who has a big impact on sales (in fact, the stores are closed) and the only event that takes place during the 28 days that we predict which is Independence Day.
 

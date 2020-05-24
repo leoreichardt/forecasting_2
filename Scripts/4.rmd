@@ -128,13 +128,12 @@ validation_set <- hts(validation_set, bnames = hts_ids, characters = c(3,1,6))
 ```
 
 
-## Modeling at level_0 with ARIMA
+## ARIMA without hierarchical decomposition
 
-We are dealing with high frequency data (daily) which can be a problem when fitting some model. Therefore, the easiest solution is to set the frequency of the time series to 7. 
 
-However, we were able to notice in the Exploratory Data Analysis that our data presented several seasonalities. Thus, we have made several attempts to take them all into account. For example, we made the differentiations (single and double) “manually” before fiting a model. However, we were unable to undiff the forecasted data to get the true values. You can find these tests in the appendix.
+We observed in the Exploratory Data Analysis that the data presents several seasonalities. Thus, we made several attempts to take all of them into account. For example, we made the differentiations (single and double) “manually” before fitting a model. However, we were unable to undiff the forecasted data to get the true values. You can find these tests in the appendix.
 
-In the next section we will work only on the top level (TX1).
+In the next section, we will work only on the top level (TX1).
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 #take only level 0
@@ -177,7 +176,7 @@ kableExtra::kable(acc,
         full_width = F)
 ```
 
-We find a RMSE of 499.9. In tests where we made the differentiations “manually”, we get lower values which is a sign of a better model. However, we made the choice not to display them here (but in the Appendix) because since we were not able to undiff the forecasted values, displaying them would not be useful for comparison.
+We find a RMSE of 499.9. While testing, we made differentiations “manually” and got lower metrics which is a sign of a better model. However, we made the choice not to display them here (but in the appendix) because we were not able to undiff the forecasted values.
 
 Below, you can find the table and the corresponding plot with the predicted values as well as the confidence interval.
 
@@ -191,8 +190,7 @@ newtable %>%
   kable(caption = "<center><strong>28 days forcecast</strong></center>",
     escape = FALSE,
     format = "html") %>% 
-  kable_styling(bootstrap_options = c("striped","bordered","hover"), full_width = F) %>% 
-  scroll_box(height = "400px")
+  kable_styling(bootstrap_options = "striped", full_width = F) 
 ```
 
 

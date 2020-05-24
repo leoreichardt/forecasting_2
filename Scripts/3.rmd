@@ -16,12 +16,26 @@ library(stringi)
 library(kableExtra)
 ```
 
+# Modeling
+
+We are dealing with high frequency data (daily) which can be a problem when fitting some model. Therefore, the easiest solution is to set the frequency of the time series to 7.  
+
+To avoid any problem related to the frequency used when creating the time series, we decided to use brackets in order to create a training and validation set.
+
+According to the paper *Another look at measures of forecast accuracy* (R. Hyndman, A. Koehler), using the MASE would ensure us easily applicable metric among our methods.  
+
+Moreover, being the mean absolute error of the forecast values, divided by the mean absolute error of the in-sample one-step naive forecast, it allows us to use it as a benchmark.
+Thus, a MASE with a value higher than one would mean that our model is less attractive than in-sample one-step forecasts from the naive method and thus should not be considered.
+
+This metric is easy to obtain when we use the forecast function however, in the second part we will use auto.arima which does not automatically return the MASE.
+Thus, this second part will be analyzed separately using the RMSE.
+
 ## Hierarchical modeling
 
-Having to analyze the TX_1 store, we started by trying to modelize the sales of this store using all the level hierarchically bellow.  
-We were soon confronted with the problems of the lack of power of our laptops. In fact, the bottom level accounts 3049 products which is too heavy.  
-We decided to keep only the level above : store_id (= TX_1), cat_id and dept_id.
-We included for the ARIMA models regressors to take into account the effect of Christmas and Independance day. This technique imporoved the metrics.  
+Having to analyze the TX_1 store, we started by trying to modelize the sales using the underlying levels.  
+We were soon confronted with the problem of the lack of power of our laptops. In fact, the bottom level accounts 3049 products which is too heavy.  
+We decided to keep only the levels above : store_id (= TX_1), cat_id and dept_id.
+In the ARIMA models, we included regressors to take into account the effect of Christmas and Independance day. This technique improved the metrics.  
 
 ```{r load data, message=FALSE, warning=FALSE, include=FALSE}
 # Load data
@@ -158,8 +172,7 @@ kable(x[,1:2], caption = "<center><strong>28 days forcecast</strong></center>",
     col.names = c("Predictions", "Observations"),
     escape = FALSE,
     format = "html") %>% 
-  kable_styling(bootstrap_options = c("striped"), full_width = F) %>% 
-  scroll_box(height = "300px")
+  kable_styling(bootstrap_options = "striped", full_width = F)
 
 ggplot() + geom_line(x, mapping = aes(x = time, y = prediction), color = "red") + geom_line(x, mapping = aes(x = time, y = actual)) + ylab("Sales") + xlab("Time") + ggtitle("Observations and predictions", subtitle = "ARIMA model with bottom-up approach") + scale_y_continuous(limits = c(2000,4500)) + scale_x_continuous(breaks = seq(0,28,2)) + theme_bw()
 
@@ -167,7 +180,8 @@ ggplot() + geom_line(x, mapping = aes(x = time, y = prediction), color = "red") 
 
 ```
 
-Predictions seem to follow the fluctuations in actual sales well.  
+Predictions are close to observed values.  
+Other less conclusive trials can be found in the appendix. 
 
 
 
