@@ -132,11 +132,10 @@ validation_set_for_diff2 <- hts(validation_set_for_diff2, bnames = hts_ids, char
 ```
 
 
-## Modeling at level_0 with ARIMA
+## ARIMA without hierarchical decomposition
 
-In the Exploratory Data Analysis, we could see that our data had different seasonality. The weekly seasonality was particularly marked. So we decided to create a time series with a frequency of 7 days.
-
-In the next section, we will try to fit an Arima model in different ways on the top level (TX1).
+In the exploratory data analysis, we could see that our data had different seasonality. The weekly seasonality was particularly strong. So we decided to create a time series with a frequency of 7 days.  
+We tried to fit an Arima model in different ways on TX_1.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 #take only level 0
@@ -150,8 +149,6 @@ val_set_for_diff2 <- validation_set_for_diff2 %>% aggts(levels=0)
 ### Auto.arima with transformation
 
 #### Lag 7 differenciation
-
-We could see in previous test that our model did not capture all the information contained in the data. We will, therefore, carry out two new tests by performing transformations ourselves before applying the auto.arima function.
 
 We will start by applying a differentiation with a lag 7.
 
@@ -169,7 +166,7 @@ ggAcf(diff_train_set, lag.max = 90) +
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-We now have a time series centered around zero. Once again, on the time plot, you can see the days that correspond to the closing of the store at Christmas. On the ACF, on the other hand, we can see that there is still a monthly seasonality (d = 30).
+We now have a time series centered around zero. Once again, on the time plot, you can see the days that correspond to the closing of the store on Christmas day. On the ACF, on the other hand, we can see that there is still a monthly seasonality (d = 30).
 
 We will now apply an auto.arima and see if we get something better in terms of residues.
 
@@ -179,7 +176,7 @@ model_autoB <- diff_train_set %>% auto.arima(approximation = FALSE, stepwise = F
 checkresiduals(model_autoB)
 ```
 
-This time we have an ARIMA(0,0,1) which shows us that it did not apply any additional differentiation. For the residues, we still don't get something satisfactory but the pattern is less clear than before. The Ljung-Box test confirms that the residues of our model do not come from a white noise.
+This time we have an ARIMA(0,0,1) which shows that it did not apply any additional differentiation. For the residues, we still don't get something satisfactory but the pattern is less clear than before. The Ljung-Box test confirms that the residues of our model do not come from a white noise.
 
 Now let's forecast for the next 28 days and look at the metrics:
 
@@ -221,7 +218,7 @@ Normally, after forecasting, we are supposed to undiff the values but unfortunat
 
 #### Lag 30 differenciation
 
-For this next test, we will take our initial time series, apply a differentiation with a lag of 30 and then make an arima.
+For the following test, we will take our initial time series, apply a differentiation with a lag of 30 and apply an arima.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 #transformation
@@ -235,7 +232,7 @@ ggAcf(diff_train_set, lag.max = 90) +
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-This time, on the ACF, it is the weekly seasonality that appears. Which isn't really a surprise. 
+This time, on the ACF, it is the weekly seasonality that appears.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 #fit model
@@ -243,7 +240,7 @@ model_autoC <- diff_train_set %>% auto.arima(approximation = FALSE, stepwise = F
 checkresiduals(model_autoC)
 ```
 
-The auto.arima function gives us this time an ARIMA(5,0,0). Again, no further differentiation was applied. As in the previous tests, the Ljung-Box rejects H0 with a p-value of less than 0.05. This is also visible on the ACF. 
+The auto.arima function gives an ARIMA(5,0,0). Again, no further differentiation was applied. As in the previous tests, the Ljung-Box rejects H0 with a p-value lower than 0.05. This is also visible on the ACF. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 #forecast
@@ -265,9 +262,9 @@ kableExtra::kable(accC,
         full_width = F)
 ```
 
-Here, the remarks are the same as for the previous forecast but with a higher (worse) RMSE. However, since the differentiation applied is not the same, we are not sure that the results are reliably comparable.
+Here, the remarks are the same than in the previous forecast but with a higher (worse) RMSE. However, since the differentiation applied is not the same, we are not sure that the results are comparable.
 
-On the graph, we get something that follows the data more closely.
+On the graph, we have something that follows the data more closely.
 
 ```{r echo=FALSE}
 #plot

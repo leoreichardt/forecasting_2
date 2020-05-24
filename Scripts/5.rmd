@@ -5,10 +5,23 @@ date: "4/20/2020"
 output: html_document
 ---
 
-As a conclusion to this report, we have defined two models that seem to us conclusive: an auto arima with a differentiation of 7 and event regressors, as well as ....
-both models are difficult to compare, because the auto arima with differentiation calculates the precision on a validation set which has also been subjected to differentiation. Thus, the MASE, which is our index to compare the performance of our models, is not provided for this model. 
 
-How could we have gone further in the project?
-First of all, we could have included more parameters for the regressor of our model, such as including all the events of the year. For our models, we only included Christmas, which has a considerable effect since it is the only day of the year when the store is closed and therefore sales are at zero, as well as Independence Day which is the only event that will appear in the 28 days that we have to forecast. 
-Then we could have taken into account the monthly seasonality in all the models. But as mentioned before, since the number of days is variable for each month, we could not simply apply a 28 or 30 day differentiation. 
-Finally, another way to improve our predictions would have been to take a lower layer of our data, i.e. to make predictions down to each particular product, and not stop at the second level (dept_id).
+# Discussion and Conclusion
+
+This project was the opportunity to apply and better understand the concepts learned in Forecasting 1. We quickly realized that we had to be flexible and that there are multiple ways of approaching the task.
+
+So from the start, we decided to explore different directions. First, with the exploratory data analysis to immerse ourselves into the data and get as much information as possible, then in modelling with the choice of methods and models.
+
+While using the data in their hierarchical form, we learned to use these complex objects and expanded our knowledge in order to apply the different approaches available. We also chose to apply a regressor to take certain events into account; the Christmas closing and Independence Day.
+
+One of the difficulties with this approach lay in the choice of levels to take into account. Choice which was limited by the power of our machines. This is why we have tried different alternatives. We also faced some barriers when manipulating the data in its hierarchical form and adapting the functions we already knew.
+
+The second major approach that we have adopted is applying an ARIMA only on the level that interests us. We have done several tests; some letting the auto.arima function to take care of everything, and others where we differentiated "manually" before applying the model.  
+We had difficulties applying the reverse transformation after having forecasted. This situation made it difficult to compare and interpret our results. For this reason, it is difficult to give a "winner" among the models we have tried.
+
+These different tests allowed us to understand the impact of the choice of the frequency in a time series and the behaviour of multiple seasonalities.
+
+We explored many directions in this project but would have liked to experiment more, such as: 
+Integrate more events into our modeling, use the price variable, go further in the transformations (log, Box-cox, etc.) and even use the bottom level of the hierarchical data (all items) in order to capture more information.
+
+In conclusion, even if all our attempts have not been successful, we draw great lessons from it and have considerably expanded our knowledge. We are convinced that learning to identify the source of a problem and looking for suitable solutions is equally important.

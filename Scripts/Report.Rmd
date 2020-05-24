@@ -38,8 +38,6 @@ knitr::opts_chunk$set(
 ```{r child = '5.rmd'}
 ```
 
-```{r child = '6.rmd'}
-```
 
 ```{r child = 'Appendix.rmd'}
 ```
