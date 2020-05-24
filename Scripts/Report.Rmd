@@ -17,6 +17,9 @@ knitr::opts_chunk$set(
 )
 ```
 
+```{r child = '0. introduction.rmd'}
+```
+
 ```{r child = '1.rmd'}
 ```
 

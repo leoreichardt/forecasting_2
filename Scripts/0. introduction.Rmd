@@ -17,5 +17,10 @@ Once all these possibilities have been tested, we will select the best model acc
 
 
 ## Data Division
+
+
+![](images/imagedate.jpg)
+
+
 To evaluate our different models, we have divided our data into 3 parts. Historical data is provided from 2011-01-29 to 2016-06-19, but a part of these days contained only NAs. 
 So we took all the days without NA, from which we removed 28 days to do a validation set and 28 days for a test set. The figure below summarizes our splitting.  

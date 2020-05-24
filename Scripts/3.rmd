@@ -49,12 +49,10 @@ tdf3$Christmas[is.na(tdf3$Christmas)] = 0
 tdf3$IndependenceDay <- ifelse(tdf3$event_name_1 == "IndependenceDay", 1,0)
 tdf3$IndependenceDay[is.na(tdf3$IndependenceDay)] = 0
 
-tdf3$SuperBowl <- ifelse(tdf3$event_name_1 == "SuperBowl", 1,0)
-tdf3$SuperBowl[is.na(tdf3$SuperBowl)] = 0
 
 
-specialDays_modeling <- cbind(tdf3$IndependenceDay[1:1857],tdf3$SuperBowl[1:1857], tdf3$Christmas[1:1857])
-specialDays_forecasting <- cbind(tdf3$IndependenceDay[1858:1885],tdf3$SuperBowl[1858:1885], tdf3$Christmas[1858:1885])
+specialDays_modeling <- cbind(tdf3$IndependenceDay[1:1857], tdf3$Christmas[1:1857])
+specialDays_forecasting <- cbind(tdf3$IndependenceDay[1858:1885], tdf3$Christmas[1858:1885])
 ```
 
 # Modeling
@@ -63,13 +61,7 @@ specialDays_forecasting <- cbind(tdf3$IndependenceDay[1858:1885],tdf3$SuperBowl[
 
 ### Putting our data into a time series
 
-We were looking at two different frequencies: monthly and weekly. 
-Each seemed to make sense when we used them to remove seasonality (see EDA).
-
-However, 
-
-So we have 2 frequencies to compare: one of 365 and one of 7.  
-
+In this part we will use a frequency of 7 because there is a weekly seasonality and the models will run faster.
 
 ### Divide the time series into training/validation/test sets:
 
@@ -82,13 +74,16 @@ We decided to remove 56 days (2x28) from the training set. This allows us to mea
 
 ### Choice of the metric 
 
-According to the paper *Another look at measures of forecast accuracy*, using the MASE would ensure us easily applicable metric among our methods. 
+According to the paper *Another look at measures of forecast accuracy* (R. Hyndman, A. Koehler), using the MASE would ensure us easily applicable metric among our methods. 
 
 Moreover, being the mean absolute error of the forecast values, divided by the mean absolute error of the in-sample one-step naive forecast, it allows us to use it as a benchmark.   
 Thus, a MASE with a value higher than one would mean that our model is less attractive than in-sample one-step forecasts from the naive method and thus should not be considered.
 
-Therefore, we use the MASE to evaluate the next forecasts accuracies.
+This metric is easy to obtain when we use the *forecast* function however, in the second part we will use *auto.arima* which does not automatically return the MASE.  
+Thus, this second part will be analyzed separately using the RMSE.  
 
+Note that we could have used the RMSE everywhere but the way we got the metrics from *auto.arima* is particular. We differentiated the data before using it to model an arima.  
+In order to have a metric easily we preferred to apply this difference also on the training set instead of the traditional way of removing the difference from our prediction.
 
 ## Hierarchical modeling 
 
@@ -390,101 +385,18 @@ row_spec(6, background = "lightyellow")
 
 ```
 
-```{r}
-FORECAST_ALL_bu_arima %>% aggts(levels = 2)
-plot(FORECAST_ALL_mo_arima, levels = 2, )
-```
+Indeed, this was the method that gave us the lowest MASE.  
 
-
-Indeed, this was the method that gave us the lowest MASE.
-
-
-# Forecast accuracy
-
-This is the graph of the validation days with the model in traitillé 
-comment me please
+The following graph shows the predicted values in red and the actual values in black. 
+Unfortunately, since we used the middle out method we were not able to add a confidence interval with the code provided. 
 
 ```{r}
+x <- FORECAST_ALL_mo_arima %>% aggts(levels = 2)
+y <- HTS_te_lvl_0_to_4 %>% aggts(levels = 2)
+x <- data.frame(x[,5], y[,5], 1:28)
+colnames(x) <- c("prediction", "actual", "time")
 
-lowest <-aggts(FORECAST_ALL_bu_arima, levels = 4)
-```
-
-```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-forecast.hts.bu <- function(object,
-                            h,
-                            models_lower,
-                            B = 1e3)
-{
-  S <- smatrix(object)
-  sims <- array(NA, dim = c(h, ncol(object$bts), B))
-  dimnames(sims) <- list(1:h, colnames(object$bts), 1:B)
-  for (b in 1:B) {
-    sims[, , b] <-
-      do.call(cbind, lapply(models_lower, simulate, nsim = h))
-  }
-  all_sims <- propagate_forecast(sims, S)
-  return(sims_to_forecast(all_sims))
-  
-}
-
-
-#------
-
-propagate_forecast <- function(base_forecasts, S) {
-  aperm(plyr::aaply(base_forecasts, 3, function(u) u %*% t(S)),
-        c(2, 3, 1))
-}
-
-#---
-
-
-sims_to_forecast <- function(sims, p = c(0.025, 0.975)) {
-  quantiles <- aperm(apply(sims, 1:2, quantile, p), c(2, 3, 1))
-  means <- apply(sims, 1:2, mean)
-  return(list(
-    lower = quantiles[, , 1],
-    mean = means,
-    upper = quantiles[, , 2]
-  ))
-}
-
-```
-
-```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-fc.pr <-
-  forecast.hts.bu(FORECAST_ALL_bu_arima,
-                  h = 28,
-                  models_lower = lapply(lowest + 1, auto.arima, lambda = 0))
-```
-
-```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-fc.series <- ts(
-  cbind(
-    mean = fc.pr$mean[, 9],   # le [, 1] est là pour désigner le level 0 --> nous on veut le lvl 2 c'est la 9ème colonne
-    lower = fc.pr$lower[, 9],
-    upper = fc.pr$upper[, 9]
-  ),
-  start = tsp(FORECAST_TX1_bu_arima$bts)[2] + 1, # update the forecast start time
-  frequency = tsp(FORECAST_TX1_bu_arima$bts)[3] # copy the frequency
-)
-```
-
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-TX1_validation <- aggts(HTS_te_lvl_0_to_4, levels = 2)
-
-fc.series <- data.frame(fc.series)
-fc.series <- ts(fc.series)
-
- autoplot(TX1_validation[,5]) +
-  autolayer(fc.series, lty=2)+
-   theme_bw() +
-      labs(title = "Observations & Predictions",
-        subtitle = "With confidence interval",
-        y = "Sales",
-        x = "Days") +
-       theme(plot.title = element_text(hjust = 0.5, face = "bold"),
-        plot.subtitle = element_text(hjust = 0.5)) 
-
+ggplot() + geom_line(x, mapping = aes(x = time, y = prediction), color = "red") + geom_line(x, mapping = aes(x = time, y = actual)) + ylab("Sales") + xlab("Time") + ggtitle("Observations and Predictions")
 
 ```
 

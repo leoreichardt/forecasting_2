@@ -244,7 +244,7 @@ kableExtra::kable(accB,
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
-Looking at the accuracy metrics we can see that the RMSE goes from 499.89 to 417.56. So we have an improvement. However, it is important to note here that we did not apply the inverse transformation after forecasting; we simply applied a differentiation on our validation set in order to obtain the accuracy (we also loose 7 days on the graph for the observed data). So, on the graph we have something very linear for the predictions. Normally, an inverse transoformation must be applied to obtain the final predictions.
+Looking at the accuracy metrics we can see that the RMSE goes from 499.89 to 417.56. So we have an improvement. However, it is important to note here that we did not apply the inverse transformation after forecasting; we simply applied a differentiation on our validation set in order to obtain the accuracy (we also loose 7 days on the graph for the observed data). So, on the graph we have something very linear for the predictions. Normally, an inverse transformation must be applied to obtain the final predictions.
 
 #### Trial B
 
